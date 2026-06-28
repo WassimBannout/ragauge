@@ -1,0 +1,31 @@
+# Secrets — never commit API keys
+.env
+.env.*
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Data & build artifacts (large / reproducible — keep the repo lean)
+data/raw/
+data/filings/
+*.faiss
+*.index
+indexes/
+.cache/
+
+# Eval run outputs (history can be noisy; keep baseline.json tracked explicitly)
+runs/
+metrics.json
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
