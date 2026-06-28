@@ -257,3 +257,55 @@ reviewer-facing artifact or headline number; the rest are the plumbing that earn
   - *Metric:* surfaces all headline metrics · *Depends on:* T20, T21, T22
 
 ---
+
+## Implementation status
+
+> **As of 2026-06-29.** Update this at the end of every working session
+> (per [`CLAUDE.md`](./CLAUDE.md)). The checklist above is the per-task tracker;
+> this section is the prose snapshot a reviewer reads first.
+
+**Phase:** Planning complete, implementation not yet started.
+**Progress:** 0 / 23 subtasks done. **Next up: T1 (project scaffolding).**
+No serving-pipeline or harness code exists yet, so **no metrics have been
+measured** — the README headline numbers are intentionally blank, not omitted.
+
+### Completed
+- **Design & architecture** — [`DESIGN.md`](./DESIGN.md): component boundaries
+  (ingest / retrieve / generate / eval), typed data contracts, structure-aware
+  chunking strategy, staged hybrid retrieval, dual-trigger abstention, the eval
+  harness, build order (§12), and the hiring-manager signal breakdown (§13).
+- **Epic & PRD** — the founding epic, success metrics, and user stories (above).
+- **Subtask decomposition** — the 23-task trackable checklist (T1–T23) with
+  acceptance criteria, metric-moved, and dependencies, ordered fastest-signal-first.
+- **Repo hygiene** — `.gitignore` (raw filings, indexes, `.env`, secrets),
+  `README.md` scaffold, `CLAUDE.md` project memory.
+
+### Partial / in progress
+- _None._ The owner also edits these docs from a separate playbook chat, so treat
+  filesystem state as truth and re-verify before relying on any summary.
+
+### Pending
+- **All implementation (T1–T23).** No code, no vendored filings, no indexes, no
+  golden set, no `RunReport`s. In dependency order the critical path to first
+  signal is **T1 → T2 → T3–T6 (ingest) → T7–T8 (dense) → T9 (golden set) → T10
+  (recall@5 baseline)**; the thesis artifact (ablation table) is **T20**.
+
+### Next steps (immediate)
+1. **T1 — scaffolding:** Python project layout, lockfile, `.env` loading,
+   component dirs, `pytest` wired and green on a placeholder.
+2. **T2 — data contracts:** the Pydantic types, with the deterministic
+   content-addressed `chunk_id` and a stability unit test.
+3. **T3 — acquire 2–3 static 10-Ks** and record the corpus hash, unblocking ingest.
+
+### Technical decisions & deviations from plan
+- **No deviations from `DESIGN.md` yet** — nothing is built, so there is nothing
+  to diverge. Record concrete library/model choices here as they are made.
+- **Decisions still open (resolve at implementation, not before):** vector index
+  + embedding model, BM25 library, cross-encoder model, exact Claude model ids for
+  generator vs. judge. Per `DESIGN.md` §11 and `CLAUDE.md`, model ids/pricing are
+  **verified against the live Claude API reference at wiring time** and the
+  generator/judge picks are a *measured* outcome of the T21 sweep, not a guess.
+- **Cost accounting** will use the **provider token-counting API**, not a generic
+  tokenizer (locked decision; affects T15/T21).
+
+---
