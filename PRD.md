@@ -121,16 +121,19 @@ is reached on the shortest viable path. `★` marks a task that produces a
 reviewer-facing artifact or headline number; the rest are the plumbing that earns it.
 
 **Status legend:** `- [ ]` pending · `- [x]` done · annotate partials inline.
-**Progress at a glance:** 0 / 23 done — next up: **T1**.
+**Progress at a glance:** 8 / 23 done — **Slice 1 (ingest + dense retrieval, T1–T8)
+complete and verified end-to-end** on AAPL/MSFT/NVDA FY2025–26 10-Ks (789 chunks,
+dense top-k working, query p95 < 200 ms). Next up: **T9** (golden set) → **T10**
+(the first recall@5 number). See § Implementation status for deviations.
 
 #### Phase 0 — Foundations (clean boundaries = architect signal)
 
-- [ ] **T1 · Project scaffolding & dependencies.** Python project layout
+- [x] **T1 · Project scaffolding & dependencies.** Python project layout
   (`pyproject`/lockfile), `.env` loading, component dirs (`ingest/ retrieve/
   generate/ eval/`), test runner wired.
   - *Acceptance:* `pytest` runs green on a placeholder test; deps install clean from a fresh checkout; `.env` read without committing secrets.
   - *Metric:* — · *Depends on:* none
-- [ ] **T2 · Data-contract types.** Implement the typed records that cross
+- [x] **T2 · Data-contract types.** Implement the typed records that cross
   boundaries: `Chunk`, `RetrievedChunk`, `Answer`, `GoldRow`, `RunReport`
   (Pydantic), incl. the content-derived **stable `chunk_id`** scheme.
   - *Acceptance:* types importable + round-trip (de)serialize; `chunk_id` is deterministic from content and stable across re-ingestion (unit test proves it); `stage_provenance` modelled on `RetrievedChunk`.
@@ -138,31 +141,31 @@ reviewer-facing artifact or headline number; the rest are the plumbing that earn
 
 #### Phase 1 — Ingest
 
-- [ ] **T3 · Acquire & vendor 2–3 static 10-Ks.** Download once, store raw under
+- [x] **T3 · Acquire & vendor 2–3 static 10-Ks.** Download once, store raw under
   the gitignored data dir; record source + corpus hash.
   - *Acceptance:* 2–3 filings on disk across ≥2 companies; a manifest notes accession/URL + corpus hash; raw files gitignored.
   - *Metric:* — · *Depends on:* T1
-- [ ] **T4 · Section segmentation (Item 1 / 1A / 7 / 8).** Heading/anchor
+- [x] **T4 · Section segmentation (Item 1 / 1A / 7 / 8).** Heading/anchor
   detection that splits a filing into Items before any size-based chunking.
   - *Acceptance:* each chosen filing splits into the target Items with correct `section` labels; validated by eyeball across all filings (boundary robustness is a known risk).
   - *Metric:* — · *Depends on:* T3
-- [ ] **T5 · Structure-aware chunker + metadata. ★** Size-bounded chunking within
+- [x] **T5 · Structure-aware chunker + metadata. ★** Size-bounded chunking within
   sections that keeps tables coherent and footnotes with referents; attach full
   metadata (`doc_id, company, fiscal_year, section, anchor, chunk_id`).
   - *Acceptance:* chunks carry complete metadata; ≥1 documented example of a table/footnote a naive splitter would break, preserved intact (this is the §4 interview exhibit); no mid-sentence/mid-row splits in a spot-check.
   - *Metric:* — (sets the recall ceiling measured at T10) · *Depends on:* T2, T4
-- [ ] **T6 · Chunk store + inspection script.** Persist chunks keyed by
+- [x] **T6 · Chunk store + inspection script.** Persist chunks keyed by
   `chunk_id`; a small CLI to dump/inspect chunks for a doc/section.
   - *Acceptance:* `inspect` prints chunks with metadata for a given filing/section; store re-loads without re-parsing. *(Demo: inspect chunks.)*
   - *Metric:* — · *Depends on:* T5
 
 #### Phase 2 — Dense retrieval baseline
 
-- [ ] **T7 · Embed chunks + build dense index.** Embedding model + vector index;
+- [x] **T7 · Embed chunks + build dense index.** Embedding model + vector index;
   index is embedding-model-versioned and rebuilt on ingest.
   - *Acceptance:* index builds over the full chunk set; build is reproducible; embedding model id recorded for the run.
   - *Metric:* — · *Depends on:* T6
-- [ ] **T8 · Dense retrieval top-k (Retrieve seam). ★** Config-toggleable
+- [x] **T8 · Dense retrieval top-k (Retrieve seam). ★** Config-toggleable
   `Retrieve(query, config) → RetrievedChunk[]` returning dense top-k with scores
   + provenance — the seam the harness and CLI talk to.
   - *Acceptance:* a query returns ranked `RetrievedChunk`s with `stage_provenance="dense"`; `top_k` config-driven; eyeball relevance sane. *(Demo: query it.)*
@@ -550,15 +553,27 @@ The slice is done when:
 > (per [`CLAUDE.md`](./CLAUDE.md)). The checklist above is the per-task tracker;
 > this section is the prose snapshot a reviewer reads first.
 
-**Phase:** Planning complete; **Slice 1 (ingest + dense retrieval, T2–T8) is now
-fully specified and build-ready** (see § Slice 1 requirements). Implementation
-code not yet started.
-**Progress:** 0 / 23 subtasks coded. **Next up: T1 (project scaffolding).**
-No serving-pipeline or harness code exists yet, so **no metrics have been
-measured** — the README headline numbers are intentionally blank, not omitted.
-The repo is **docs-only** (`DESIGN.md`, `PRD.md`, `README.md`, `CLAUDE.md`,
-`.gitignore`); there are no source files, vendored filings, indexes, or
-`RunReport`s on disk yet.
+**Phase:** **Slice 1 (ingest + dense retrieval, T1–T8) is built, tested, and
+verified end-to-end.** Raw 10-Ks → structure-aware chunks → stamped exact dense
+index → a config-toggleable `Retrieve(query, config)` seam returning ranked,
+section-labelled evidence.
+**Progress:** 8 / 23 subtasks coded. **Next up: T9 (golden set) → T10 (first
+recall@5 number).** The README headline metrics remain intentionally blank: the
+first *number* is T10, which sits one task past this slice. No generation, judge,
+or `RunReport` code exists yet — by design.
+
+**What runs today (`ragauge` CLI):** `acquire` (EDGAR → manifest + corpus_hash) ·
+`ingest` (parse → segment → chunk → JSONL store) · `inspect` (dump chunks by
+doc/section, no re-parse) · `build-index` (embed + exact flat index) · `query`
+(dense top-k). **19 unit tests green** (`pytest`), all offline (a hash-based test
+embedder needs no model download).
+
+**Verified on the real corpus** (AAPL FY2025, MSFT FY2025, NVDA FY2026 — 3
+filings / 3 companies, `corpus_hash=60707081f218`): **789 chunks** (667 prose /
+122 table), healthy four-Item section coverage on every filing, **byte-identical
+`chunk_id`s + chunk order across a re-ingest** (acceptance #8), and sane dense
+relevance — e.g. a supply-chain-risk query returns an all-`ITEM_1A` top-5 at
+0.73–0.76 cosine. Dense query latency **96–186 ms** (NFR4 target < 250 ms p95).
 
 ### Completed
 - **Design & architecture** — [`DESIGN.md`](./DESIGN.md): component boundaries
@@ -577,34 +592,57 @@ The repo is **docs-only** (`DESIGN.md`, `PRD.md`, `README.md`, `CLAUDE.md`,
   ablation dimension** — `voyage-finance-2` (finance-domain) vs.
   `text-embedding-3-large` compared by recall@5/MRR on the golden set, riding the
   T20/T21 machinery. Verify exact ids/dims at wiring time.
-- **Repo hygiene** — `.gitignore` (raw filings, indexes, `.env`, secrets),
-  `README.md` scaffold, `CLAUDE.md` project memory.
+- **Repo hygiene** — `.gitignore` (raw filings, indexes, chunk store, `.env`,
+  secrets; manifest tracked for provenance), `README.md`, `CLAUDE.md`.
+- **Slice 1 implementation (T1–T8) — coded, tested, verified.** `ragauge` package
+  (`ingest/ retrieve/ generate/ eval/`), typed Pydantic contracts with the
+  content-addressed `chunk_id`, the full ingest pipeline, the bge embedder, the
+  exact flat index, the dense `Retrieve` seam, the CLI, and 19 passing tests.
 
 ### Partial / in progress
-- **Slice 1 (T2–T8) — specced, not coded.** The ingest + dense-retrieval slice
-  has a complete build-ready spec (parsing, chunking, metadata/`chunk_id`,
-  embedding, index, FR/NFR, acceptance criteria) but **zero implementation**. It
-  is "in progress" only in the plan-first sense — the next sessions execute it.
+- _Nothing partial in Slice 1._ T1–T8 are complete; T9+ not started.
 - _Note:_ the owner also edits these docs from a separate playbook chat, so treat
   filesystem state as truth and re-verify before relying on any summary.
 
 ### Pending
-- **All implementation (T1–T23).** No code, no vendored filings, no indexes, no
-  golden set, no `RunReport`s. In dependency order the critical path to first
-  signal is **T1 → T2 → T3–T6 (ingest) → T7–T8 (dense) → T9 (golden set) → T10
-  (recall@5 baseline)**; the thesis artifact (ablation table) is **T20**.
+- **T9–T23.** No golden set, generation, judge, ablation, sweep, or CI gate yet.
+  Critical path to first signal: **T9 (golden set) → T10 (recall@5 baseline)**;
+  the thesis artifact (ablation table) is **T20**.
 
 ### Next steps (immediate)
-1. **T1 — scaffolding:** Python project layout, lockfile, `.env` loading,
-   component dirs, `pytest` wired and green on a placeholder.
-2. **T2 — data contracts:** the Pydantic types, with the deterministic
-   content-addressed `chunk_id` and a stability unit test.
-3. **T3 — acquire 2–3 static 10-Ks** and record the corpus hash, unblocking ingest.
+1. **T9 — golden set v0:** ~30 hand-verified rows pinned to the real `chunk_id`s
+   now in `data/chunks.jsonl` (gold rows reference live ids; stratify by
+   type × section × difficulty; ~15% unanswerable).
+2. **T10 — retrieval-metrics harness:** run the golden set through the dense seam,
+   report recall@5 / MRR / unanswerable-precision tied to (config hash, corpus
+   hash) — **the first honest number.**
+3. **(stretch) tune chunking** against T10 recall@5 before locking ids for T9.
 
 ### Technical decisions & deviations from plan
-- **No deviations from `DESIGN.md`** — nothing is built, so nothing has diverged.
-  All decisions below *refine* the design's deliberately-open choices; none
-  contradict it.
+- **Deviations made in Slice 1 (all documented, none contradict `DESIGN.md`):**
+  - **Vector index is NumPy, not FAISS.** The design said exact flat search
+    *"e.g. FAISS `IndexFlatIP`"*; we implement the identical semantics
+    (brute-force inner product over L2-normalized vectors = cosine) in NumPy.
+    Same exactness, no native dependency, fully CPU-portable (NFR3). FAISS remains
+    a drop-in if scale ever demands it. §S1.5.
+  - **Section segmentation hardening for real filings (NFR8).** Two real failure
+    modes found and fixed by eyeball across the 3 filings: (a) **MSFT** repeats a
+    bare "Item 1A" as a *running page header* on every page — a section start now
+    requires a **title** after the item number, so running headers aren't
+    boundaries; (b) **NVDA** files a one-line **Item 8 "by reference" stub** with
+    the consolidated statements physically in the Item 15 schedules region — a
+    tightly-gated post-pass (fires only when Item 8 is a stub) relabels those
+    F-pages as `ITEM_8`, so finance evidence carries the right section. These are
+    exactly the §DESIGN 14 robustness risks, surfaced not hidden.
+  - **Embedding latency, not cost.** Building the 789-chunk dense index took
+    ~6 min wall (~20 CPU-min) on a loaded laptop CPU — above NFR4's "minutes" but
+    a one-time, offline, zero-$ build (NFR5 holds). Mitigations if it bites: cache
+    embeddings across re-ingests, or batch on a GPU. Serving latency is fine
+    (96–186 ms/query).
+- **Decisions confirmed at wiring time (per `CLAUDE.md`):** `bge-base-en-v1.5`
+  verified as 768-dim / 512-token-max; bge asymmetric query instruction wired;
+  normalized embeddings → cosine via inner product. The other refinements below
+  stand unchanged.
 - **Decisions now made (Slice 1, recorded per `CLAUDE.md`):**
   - **Embedding model:** local **`bge-base-en-v1.5`** (768-dim, 512-token max) via
     `sentence-transformers` as the reproducible, zero-cost baseline — *and* the
