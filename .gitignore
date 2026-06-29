@@ -16,10 +16,13 @@ env/
 # Data & build artifacts (large / reproducible — keep the repo lean)
 data/raw/
 data/filings/
+data/chunks.jsonl
 *.faiss
 *.index
 indexes/
 .cache/
+# data/manifest.json is intentionally tracked: small, records provenance
+# (accession/URL + corpus_hash) for reproducibility.
 
 # Eval run outputs (history can be noisy; keep baseline.json tracked explicitly)
 runs/
