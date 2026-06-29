@@ -575,29 +575,51 @@ filings / 3 companies, `corpus_hash=60707081f218`): **789 chunks** (667 prose /
 relevance — e.g. a supply-chain-risk query returns an all-`ITEM_1A` top-5 at
 0.73–0.76 cosine. Dense query latency **96–186 ms** (NFR4 target < 250 ms p95).
 
-### Completed
-- **Design & architecture** — [`DESIGN.md`](./DESIGN.md): component boundaries
-  (ingest / retrieve / generate / eval), typed data contracts, structure-aware
-  chunking strategy, staged hybrid retrieval, dual-trigger abstention, the eval
-  harness, build order (§12), and the hiring-manager signal breakdown (§13).
-- **Epic & PRD** — the founding epic, success metrics, and user stories (above).
-- **Subtask decomposition** — the 23-task trackable checklist (T1–T23) with
-  acceptance criteria, metric-moved, and dependencies, ordered fastest-signal-first.
-- **Slice 1 requirements** — the build-ready spec for ingestion + dense retrieval
-  (T2–T8): parsing, structure-aware chunking, per-chunk metadata + `chunk_id`
-  scheme, the embedding-model recommendation + justification, index layout, and
-  FR/NFR/acceptance criteria. See **§ Slice 1 requirements** above. *Decision
-  made:* embedding baseline is local `bge-base-en-v1.5` (reproducible, zero-cost
-  anchor), and the embedding model is **promoted to a first-class, LLM-free
-  ablation dimension** — `voyage-finance-2` (finance-domain) vs.
-  `text-embedding-3-large` compared by recall@5/MRR on the golden set, riding the
-  T20/T21 machinery. Verify exact ids/dims at wiring time.
-- **Repo hygiene** — `.gitignore` (raw filings, indexes, chunk store, `.env`,
-  secrets; manifest tracked for provenance), `README.md`, `CLAUDE.md`.
-- **Slice 1 implementation (T1–T8) — coded, tested, verified.** `ragauge` package
-  (`ingest/ retrieve/ generate/ eval/`), typed Pydantic contracts with the
-  content-addressed `chunk_id`, the full ingest pipeline, the bge embedder, the
-  exact flat index, the dense `Retrieve` seam, the CLI, and 19 passing tests.
+### Headline-metrics status
+
+The headline numbers (mirrored at the top of [`README.md`](./README.md)) are
+**intentionally unmeasured** until the eval harness exists — *honest numbers or
+none*. Where each one lands:
+
+| Metric | Status | Lands at |
+|---|---|---|
+| **recall@5** | not yet measured | **T10** (next) |
+| **MRR / unanswerable-precision** | not yet measured | **T10** |
+| **groundedness / supported-claim rate** | not yet measured | **T14** (LLM judge) |
+| **unsupported-claim rate** | not yet measured | **T14** (LLM judge) |
+| **$ / eval run** | not yet measured | **T15** (provider token-counting) |
+| **p95 latency (dense retrieval)** | ✅ **~96–186 ms** measured | Slice 1; end-to-end at T15 |
+| **recall lift per stage** (ablation) | not yet measured | **T20** |
+
+### Completed features
+
+**Slice 1 — ingest + dense retrieval (T1–T8), coded · tested · verified:**
+- **Scaffolding & contracts (T1–T2).** `ragauge` package with the four-component
+  layout (`ingest/ retrieve/ generate/ eval/`); Pydantic `Chunk / RetrievedChunk
+  / Answer / GoldRow / RunReport`; content-addressed `chunk_id`
+  (`{doc_id}:{section}:sha256(text)[:12]`); a declarative `PipelineConfig` whose
+  retrieval stages are config toggles (only `dense` wired). `uv.lock` pins torch
+  to the CPU wheel index.
+- **Acquire (T3).** EDGAR fetch of the primary 10-K HTML for AAPL / MSFT / NVDA;
+  manifest with accession/URL + `corpus_hash`; raw files gitignored.
+- **Parse + segment + chunk (T4–T5).** HTML → blocks with layout/data-table
+  discrimination and binding-preserving table linearization; Item 1/1A/7/8
+  segmentation (ToC echoes, running headers, and by-reference Item 8 handled);
+  structure-aware size-bounded chunking (tables atomic, no mid-sentence/mid-row
+  splits) with full metadata.
+- **Store + inspect (T6).** JSONL chunk store keyed by `chunk_id`; `inspect` CLI
+  dumps chunks by doc/section without re-parsing.
+- **Embed + index (T7).** Local `bge-base-en-v1.5` (768-dim, asymmetric
+  query/passage prompting); exact flat inner-product index stamped with
+  model+corpus+chunking hashes so a stale index can't be served.
+- **Dense Retrieve seam (T8).** Config-toggleable `Retrieve(query, config) →
+  RetrievedChunk[]` with `stage_provenance="dense"`; the only surface the harness
+  / CLI call. `ragauge` CLI: `acquire / ingest / inspect / build-index / query`.
+- **Tests.** 19 unit tests green, all offline (hash-based test embedder).
+
+**Planning (pre-existing):** design & architecture ([`DESIGN.md`](./DESIGN.md)),
+epic + PRD + the 23-task checklist, and the build-ready **§ Slice 1
+requirements** spec.
 
 ### Partial / in progress
 - _Nothing partial in Slice 1._ T1–T8 are complete; T9+ not started.

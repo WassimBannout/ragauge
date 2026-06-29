@@ -2,20 +2,24 @@
 
 ## Headline metrics
 
-| Metric | Value |
-|---|---|
-| recall@5 | _not yet measured_ |
-| groundedness / supported-claim rate | _not yet measured_ |
-| unsupported-claim rate | _not yet measured_ |
-| $ / eval run | _not yet measured_ |
-| p95 latency | _not yet measured_ |
+*Current as of 2026-06-29 — Slice 1 (ingest + dense retrieval) shipped; eval
+harness not built yet, so the judged numbers are honestly unmeasured.*
 
-> **Current as of 2026-06-29 — pre-baseline (no eval run yet).** These populate
-> from the first eval run: the dense-only retrieval baseline (recall@5) lands at
-> subtask **T10**, the judged generation + cost/latency metrics at **T14–T16**,
-> and the full ablation table at **T20**. They are shown blank rather than
-> guessed — **honest numbers or none.** See [DESIGN.md](DESIGN.md) §7 and the
-> progress tracker in [PRD.md](PRD.md).
+| Metric | Value | Status |
+|---|---|---|
+| **recall@5** | — | lands at **T10** (next task) |
+| **groundedness / supported-claim rate** | — | lands at **T14** (LLM judge) |
+| **unsupported-claim rate** | — | lands at **T14** (LLM judge) |
+| **$ / eval run** | — | lands at **T15** (provider token-counting) |
+| p95 latency (dense retrieval) | **~96–186 ms** | ✅ measured (Slice 1); end-to-end at T15 |
+
+> **Why dashes, not numbers?** The headline of this project is *honest*
+> measurement. recall@5 is the first eval number and it lands one task away at
+> **T10**; the judged generation metrics (groundedness, unsupported-claim rate)
+> and real $/run arrive with the harness at **T14–T16**, and the full ablation
+> table at **T20**. Values are shown blank rather than guessed — **honest numbers
+> or none.** See [DESIGN.md](DESIGN.md) §7 and
+> [PRD.md → Implementation status](PRD.md#implementation-status).
 
 An **eval-first** retrieval-augmented QA system over SEC 10-K filings. The
 headline isn't the chatbot — it's the **evaluation harness**: a hand-verified
