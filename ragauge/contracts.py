@@ -142,8 +142,10 @@ class Answer(BaseModel):
     citations: list[str] = Field(default_factory=list)  # chunk_ids
     abstained: bool = False
     evidence_used: list[str] = Field(default_factory=list)  # chunk_ids
-    input_tokens: int = 0
+    input_tokens: int = 0  # uncached input tokens (billed at full rate)
     output_tokens: int = 0
+    cache_creation_input_tokens: int = 0  # prefix written to cache this call
+    cache_read_input_tokens: int = 0  # prefix served from cache this call
     cost_usd: float = 0.0
     latency_ms: float = 0.0
 
