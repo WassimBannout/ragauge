@@ -871,6 +871,14 @@ requirements** spec.
     a one-time, offline, zero-$ build (NFR5 holds). Mitigations if it bites: cache
     embeddings across re-ingests, or batch on a GPU. Serving latency is fine
     (96–186 ms/query).
+  - **CPU-only torch actually pinned (NFR3 fix).** `[tool.uv.sources]` pinned
+    torch to the CPU wheel index, but torch was a *transitive-only* dependency
+    (via `sentence-transformers`), so the pin never bound and `uv.lock` resolved
+    the PyPI build with ~1.5 GB of CUDA/nvidia wheels — silently violating the
+    CPU-only portability claim. Fix: declare `torch` as a **direct** dependency so
+    the source pin binds; re-locking drops all 18 nvidia/cuda packages + triton
+    (82 → 64) and resolves `torch 2.12.1+cpu`. The documented install path is
+    `uv sync` (not `uv pip install -e .`, which ignores `[tool.uv.sources]`).
 - **Decisions confirmed at wiring time (per `CLAUDE.md`):** `bge-base-en-v1.5`
   verified as 768-dim / 512-token-max; bge asymmetric query instruction wired;
   normalized embeddings → cosine via inner product. Generator/judge model ids and
