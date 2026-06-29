@@ -46,17 +46,20 @@ class EmbeddingConfig(BaseModel):
 
 
 class RetrievalConfig(BaseModel):
-    """Per-stage toggles + parameters. Slice 1 implements ``dense`` only; the
-    other flags are the modularity seam for T17–T19 (DESIGN.md §5.1)."""
+    """Per-stage toggles + parameters. Each stage is a config diff so the
+    ablation isolates its contribution (DESIGN.md §5.1): ``dense`` →
+    ``+bm25 +fusion`` → ``+rerank``."""
 
     dense: bool = True
     bm25: bool = False
     fusion: bool = False
     rerank: bool = False
 
-    top_k: int = 5  # candidates per stage / final dense top-k
-    top_n: int = 5  # final shortlist after rerank (unused until T19)
-    rrf_k: int = 60  # RRF constant (unused until T18)
+    top_k: int = 5  # final results returned (recall@5 / dense-only depth)
+    top_n: int = 5  # final shortlist after rerank cuts the candidate pool
+    candidate_k: int = 20  # per-stage retrieval depth before fusion/rerank narrowing
+    rrf_k: int = 60  # RRF rank-fusion constant
+    rerank_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"  # cross-encoder backbone
     min_score: float | None = None  # pre-generation evidence gate (unused until T13)
 
 
