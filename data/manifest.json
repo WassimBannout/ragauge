@@ -1,0 +1,38 @@
+{
+  "corpus_hash": "60707081f218",
+  "filings": [
+    {
+      "company": "AAPL",
+      "cik": "0000320193",
+      "accession": "0000320193-25-000079",
+      "primary_doc": "aapl-20250927.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000079/aapl-20250927.htm",
+      "fiscal_year": 2025,
+      "doc_id": "AAPL-10K-FY2025",
+      "source_path": "data/raw/AAPL-10K-FY2025.htm",
+      "sha256": "a5cce5c268bc"
+    },
+    {
+      "company": "MSFT",
+      "cik": "0000789019",
+      "accession": "0000950170-25-100235",
+      "primary_doc": "msft-20250630.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/789019/000095017025100235/msft-20250630.htm",
+      "fiscal_year": 2025,
+      "doc_id": "MSFT-10K-FY2025",
+      "source_path": "data/raw/MSFT-10K-FY2025.htm",
+      "sha256": "67c3288e5ee4"
+    },
+    {
+      "company": "NVDA",
+      "cik": "0001045810",
+      "accession": "0001045810-26-000021",
+      "primary_doc": "nvda-20260125.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/nvda-20260125.htm",
+      "fiscal_year": 2026,
+      "doc_id": "NVDA-10K-FY2026",
+      "source_path": "data/raw/NVDA-10K-FY2026.htm",
+      "sha256": "62eb7a1bfaee"
+    }
+  ]
+}
