@@ -121,14 +121,17 @@ is reached on the shortest viable path. `★` marks a task that produces a
 reviewer-facing artifact or headline number; the rest are the plumbing that earns it.
 
 **Status legend:** `- [ ]` pending · `- [x]` done · annotate partials inline.
-**Progress at a glance:** 14 / 23 done (T1–T8 + T10, T12–T16; T9, T11 partial) —
-**Slice 1 (ingest + dense retrieval) and the eval harness are built and tested.**
-The deterministic dense-only baseline is measured (**recall@5 = 0.32, MRR = 0.17**
-on the 30-row golden set; retrieval p95 ~189 ms); the grounded generator + dual-
-trigger abstention + structured LLM-as-judge + RunReport are implemented and stub-
-validated, awaiting an `ANTHROPIC_API_KEY` run for the judged numbers. Next up:
-**human-verify the golden set**, then the **ablation (T17–T20)**. See
-§ Implementation status for deviations.
+**Progress at a glance:** 17 / 23 done (T1–T8 + T10, T12–T19; T9, T11, T20
+partial) — **Slice 1 (ingest + dense retrieval), the eval harness, and the
+hybrid retrieval ablation (T17–T19) are built and tested.** The deterministic
+retrieval ablation is measured: **dense recall@5 = 0.32 → hybrid (BM25 + RRF)
+0.51 (+0.19) → +rerank 0.34** (the generic cross-encoder doesn't earn its cost;
+see T19). The grounded generator + dual-trigger abstention + structured
+LLM-as-judge + RunReport are implemented and stub-validated, awaiting an
+`ANTHROPIC_API_KEY` run for the judged numbers (which fill the ablation's
+groundedness columns). Next up: **human-verify the golden set**, the
+**embedding-model dimension of the ablation (T20)**, then the **sweep + CI gate
+(T21–T23)**. See § Implementation status for deviations.
 
 #### Phase 0 — Foundations (clean boundaries = architect signal)
 
@@ -257,19 +260,40 @@ validated, awaiting an `ANTHROPIC_API_KEY` run for the judged numbers. Next up:
 
 #### Phase 6 — Hybrid retrieval & the ablation (the headline)
 
-- [ ] **T17 · BM25 sparse index + retrieval, toggleable.** Tokenizer-versioned
+- [x] **T17 · BM25 sparse index + retrieval, toggleable.** Tokenizer-versioned
   sparse index; `bm25` on/off config toggle; provenance recorded.
   - *Acceptance:* BM25 returns top-k with `stage_provenance="bm25"`; toggles independently of dense; recall@5 reportable for BM25-only. *(Demo: stage toggles.)*
   - *Metric:* recall@5 / MRR (BM25 contribution) · *Depends on:* T8
-- [ ] **T18 · Reciprocal Rank Fusion, toggleable.** Fuse dense + sparse by rank;
+  - **DONE:** in-memory Okapi BM25 (`ragauge/retrieve/bm25.py`), tokenizer-versioned
+    (`TOKENIZER_VERSION`), built lazily from the same chunk store the dense index
+    embeds — no separate artifact to go stale. Implemented directly (no
+    `rank_bm25`), mirroring the NumPy-over-FAISS call: zero native deps, inspectable.
+- [x] **T18 · Reciprocal Rank Fusion, toggleable.** Fuse dense + sparse by rank;
   `fusion` on/off; fusion constant config-driven.
   - *Acceptance:* fused ranking combines both stages by rank (no score-normalization hacks); toggle on/off; provenance shows contributing stages.
   - *Metric:* recall@5 / MRR (fusion lift) · *Depends on:* T17
-- [ ] **T19 · Cross-encoder rerank, toggleable.** Re-score fused top-k on a short
+  - **DONE:** pure `reciprocal_rank_fusion` (`ragauge/retrieve/fusion.py`), `rrf_k`
+    config-driven; fused `RetrievedChunk`s carry one `ProvenanceEntry` per
+    contributing stage. **Fusion lift: recall@5 0.32 → 0.51 (+0.19), MRR 0.17 → 0.29.**
+- [x] **T19 · Cross-encoder rerank, toggleable.** Re-score fused top-k on a short
   list for final top-n; `rerank` on/off; latency cost surfaced.
   - *Acceptance:* rerank reorders the fused shortlist; toggle on/off; per-stage latency delta captured (feeds the trade-off story).
   - *Metric:* recall@5 / MRR (rerank lift) + p95 latency · *Depends on:* T18, T15
-- [ ] **T20 · Ablation runner + table. ★ THE THESIS ARTIFACT.** Iterate configs
+  - **DONE:** `CrossEncoderReranker` (`ragauge/retrieve/rerank.py`), lazy-loaded,
+    `rerank_model` config-driven, appends a `RERANK` provenance entry. **Finding:
+    the cross-encoder rerank did *not* pay for itself here — swept three
+    checkpoints (two MS-MARCO sizes + the strong same-family `bge-reranker`); all
+    lose to hybrid on recall@5, so it's the stage (not one weak model) that
+    doesn't earn its cost:**
+    - hybrid (no rerank): **recall@5 0.51**, MRR 0.29, p95 179ms
+    - `ms-marco-MiniLM-L-6-v2` (default): recall@5 0.34, MRR 0.28, p95 2111ms
+    - `ms-marco-MiniLM-L-12-v2`: recall@5 0.42, MRR 0.39, p95 5815ms
+    - `BAAI/bge-reranker-base`: recall@5 0.42, **MRR 0.41**, p95 23607ms
+    The stronger models sharpen the *first* hit (MRR up) but demote multi-hop
+    second-gold chunks out of the top 5, at 10–130× retrieval latency on CPU.
+    **Rerank stays off by default; the toggle remains so a finance-tuned
+    cross-encoder can be re-measured later.**
+- [~] **T20 · Ablation runner + table. ★ THE THESIS ARTIFACT.** Iterate configs
   (dense → +BM25/RRF → +rerank), collect `RunReport`s, emit the table: recall@5,
   MRR, unanswerable-precision, groundedness, unsupported-rate, $/run, p95 per config.
   Include an **embedding-model dimension** (baseline `bge-base-en-v1.5` vs.
@@ -277,6 +301,13 @@ validated, awaiting an `ANTHROPIC_API_KEY` run for the judged numbers. Next up:
   LLM-free recall@5/MRR comparison per §S1.4.
   - *Acceptance:* one command runs the config matrix and produces the ablation table showing **lift per stage**; if a stage doesn't earn its cost, the writeup says so (willingness to cut is the signal). *(Artifact: the thesis table.)*
   - *Metric:* **recall lift per stage** (+ all of the above, per config) · *Depends on:* T16, T19
+  - **PARTIAL:** `python -m ragauge.eval.ablation` runs the 3-rung retrieval
+    matrix (dense → hybrid → hybrid+rerank) in one command, reusing one
+    embedder/retriever, and emits the markdown comparison table + per-config
+    `RunReport`s to `metrics_ablation.json`. Groundedness/$/run columns populate
+    when an `ANTHROPIC_API_KEY` is present (deterministic recall/MRR/p95 always).
+    *Still pending:* the **embedding-model dimension** (`voyage-finance-2` /
+    `text-embedding-3-large`) and the judged groundedness run.
 
 #### Phase 7 — Sweep, gate, writeup
 
@@ -587,30 +618,50 @@ The slice is done when:
 > (per [`CLAUDE.md`](./CLAUDE.md)). The checklist above is the per-task tracker;
 > this section is the prose snapshot a reviewer reads first.
 
-**Phase:** **Slice 1 (ingest + dense retrieval, T1–T8) and the eval harness
-(T10, T12–T16) are built and tested.** The full path exists end-to-end: raw 10-Ks
-→ structure-aware chunks → stamped exact dense index → config-toggleable
-`Retrieve` seam → grounded, cited generation (or abstention) → structured
-LLM-as-judge → a persisted `RunReport`. The **deterministic dense-only baseline is
-measured**; the judged generation metrics are implemented and stub-validated but
-need an `ANTHROPIC_API_KEY` run (no key in the build environment).
-**Progress:** 14 / 23 subtasks coded (T1–T8 + T10, T12–T16; T9 and T11 partial).
-**Next up: human-verify the golden set, then the BM25 + RRF + rerank ablation
-(T17–T20).**
+**Phase:** **Slice 1 (ingest + dense retrieval, T1–T8), the eval harness
+(T10, T12–T16), and the hybrid retrieval ablation (T17–T20) are built and
+tested.** The full path exists end-to-end: raw 10-Ks → structure-aware chunks →
+stamped exact dense index → config-toggleable `Retrieve` seam (dense + BM25 →
+RRF → cross-encoder rerank, each its own toggle) → grounded, cited generation
+(or abstention) → structured LLM-as-judge → a persisted `RunReport`, with a
+one-command ablation runner that sweeps the retrieval matrix into a comparison
+table. The **deterministic retrieval ablation is measured** (dense recall@5
+0.32 → hybrid 0.51 → +rerank 0.34); the judged generation metrics are
+implemented and stub-validated but need an `ANTHROPIC_API_KEY` run (no key in the
+build environment).
+**Progress:** 17 / 23 subtasks coded (T1–T8 + T10, T12–T19; T9, T11, T20
+partial). **Next up: human-verify the golden set, add the embedding-model
+dimension to the ablation (T20), then the model/cost sweep + CI gate (T21–T23).**
 
 **What runs today (`ragauge` CLI):** `acquire` · `ingest` · `inspect` ·
 `build-index` · `query` (Slice 1) · **`eval`** — `ragauge eval --no-judge` runs
-the golden set through dense retrieval and reports recall@5 / MRR /
+the golden set through retrieval and reports recall@5 / MRR /
 unanswerable-precision with **no LLM and no API key**, writing a `RunReport` to
 `metrics.json`; `ragauge eval` (with a key) adds grounded generation + the judge.
-**26 unit tests green** (`pytest`), all offline.
+The retrieval stack is config-toggleable end-to-end —
+`python -m ragauge.eval.run --retrieval {dense|hybrid|hybrid+rerank}` picks a
+rung, and **`python -m ragauge.eval.ablation`** sweeps all three in one command,
+emitting the markdown comparison table + per-config `RunReport`s to
+`metrics_ablation.json`. **34 unit tests green** (`pytest`), all offline.
 
-**Measured (deterministic, no LLM), on the 30-row candidate golden set:**
-**recall@5 = 0.32**, **MRR = 0.17**, retrieval **p50/p95 ≈ 150 / 189 ms**, tied to
-`(config_hash=1840a64bd655, corpus_hash=60707081f218)`. recall@5 = 0.32 is the
-**honest dense-only baseline** — bge underperforms on the numeric/table questions
-that dominate a 10-K golden set, which is precisely the headroom the hybrid
-ablation (T17–T20) exists to earn back, measured.
+**Measured (deterministic, no LLM), on the 30-row candidate golden set**
+(`corpus_hash=60707081f218`):
+
+| config | recall@5 | MRR | retrieval p95 ms |
+|---|---|---|---|
+| dense-only (bge-base) | 0.32 | 0.17 | 197 |
+| **+ BM25 + RRF (hybrid)** | **0.51** | **0.29** | 179 |
+| + cross-encoder rerank (off by default) | 0.34 | 0.28 | 2111 |
+
+recall@5 = 0.32 is the **honest dense-only baseline** — bge underperforms on the
+numeric/table questions that dominate a 10-K golden set. The hybrid ablation
+earns that headroom back, **measured**: a BM25 sparse stage fused with dense via
+RRF lifts recall@5 from **0.32 → 0.51 (+0.19) at no latency cost**, while a
+generic MS-MARCO cross-encoder reranker does **not** pay for itself here (recall@5
+falls to 0.34 at ~10× the retrieval latency), so it ships **off by default**. The
+reranker is itself a measured call — three cross-encoders were swept and all three
+lose to hybrid on recall@5, confirming it's the *stage*, not one weak checkpoint
+(see T19).
 
 ### Headline-metrics status
 
@@ -620,14 +671,14 @@ remain **unmeasured** until a run with an API key — *honest numbers or none.*
 
 | Metric | Status |
 |---|---|
-| **recall@5** (dense-only) | ✅ **0.32** measured (T10, no LLM) |
-| **MRR** (dense-only) | ✅ **0.17** measured (T10, no LLM) |
+| **recall@5** (best config = hybrid) | ✅ **0.51** measured (T10/T18, no LLM); dense baseline 0.32 |
+| **MRR** (best config = hybrid) | ✅ **0.29** measured (no LLM); dense baseline 0.17 |
+| **recall lift per stage** (ablation) | ✅ measured (T20): dense 0.32 → hybrid 0.51 (**+0.19**) → +rerank 0.34 |
+| **p95 latency (retrieval)** | ✅ hybrid **~179 ms**, dense **~197 ms**; rerank ~2100 ms (its cost made explicit) |
 | **unanswerable-precision** | wired; n/a in retrieval-only mode (needs the generator's abstention signal — T13) |
 | **groundedness / supported-claim rate** | wired (T14); needs a judged run |
 | **unsupported-claim rate** | wired (T14); needs a judged run |
 | **$ / eval run** | wired (T15, real provider token counts); needs a judged run |
-| **p95 latency (dense retrieval)** | ✅ **~189 ms** measured over the golden set |
-| **recall lift per stage** (ablation) | not yet measured (lands at T20) |
 
 ### Completed features
 
@@ -680,10 +731,36 @@ tested:**
 - **RunReport assembly (T16).** `ragauge/eval/run.py` writes a `RunReport` to
   `metrics.json`: per-question rows + aggregates + `(config_hash, corpus_hash,
   embedding / generator / judge model ids, timestamp, cost)`.
-- **Tests.** 26 unit tests green (19 Slice 1 + 7 covering the deterministic
-  metrics, cost-from-token-counts, and the judge-capability gate); the judged path
-  is validated end-to-end against a stubbed client (citation filtering, the
-  abstention gates, None/refusal handling, telemetry, and metric aggregation).
+- **Tests.** 34 unit tests green (19 Slice 1 + 7 covering the deterministic
+  metrics, cost-from-token-counts, and the judge-capability gate + 8 covering
+  BM25 ranking, RRF fusion, the rerank toggle, and per-stage provenance across
+  the hybrid stack); the judged path is validated end-to-end against a stubbed
+  client (citation filtering, the abstention gates, None/refusal handling,
+  telemetry, and metric aggregation).
+
+**Hybrid retrieval + the ablation (T17–T20), coded · tested:**
+- **BM25 sparse retrieval, toggleable (T17).** `ragauge/retrieve/bm25.py` — an
+  in-memory Okapi BM25 index, tokenizer-versioned (`TOKENIZER_VERSION`), built
+  lazily from the same chunk store the dense index embeds (no separate artifact
+  to go stale). Implemented directly (no `rank_bm25`), mirroring the
+  NumPy-over-FAISS call: zero native deps, inspectable. Returns top-k with
+  `stage_provenance="bm25"`, toggling independently of dense.
+- **Reciprocal Rank Fusion, toggleable (T18).** `ragauge/retrieve/fusion.py` —
+  pure rank-based fusion (no score-normalization hacks), `rrf_k` config-driven;
+  fused `RetrievedChunk`s carry one provenance entry per contributing stage.
+  **Fusion lift: recall@5 0.32 → 0.51 (+0.19), MRR 0.17 → 0.29.**
+- **Cross-encoder rerank, toggleable (T19).** `ragauge/retrieve/rerank.py` — a
+  lazy-loaded `CrossEncoderReranker`, `rerank_model` config-driven, appends a
+  `RERANK` provenance entry. **Finding: it doesn't earn its cost here** — three
+  checkpoints swept (two MS-MARCO sizes + `bge-reranker-base`), all lose to
+  hybrid on recall@5 at 10–130× the retrieval latency on CPU, so rerank ships
+  **off by default** with the toggle kept for a future finance-tuned model.
+- **Ablation runner + table (T20). ★** `python -m ragauge.eval.ablation` runs
+  the 3-rung retrieval matrix (dense → hybrid → hybrid+rerank) in one command,
+  reusing a single embedder/retriever, and emits the markdown comparison table +
+  per-config `RunReport`s to `metrics_ablation.json`. Groundedness / $-per-run
+  columns populate when an `ANTHROPIC_API_KEY` is present; recall / MRR / p95 are
+  always deterministic.
 
 **Planning (pre-existing):** design & architecture ([`DESIGN.md`](./DESIGN.md)),
 epic + PRD + the 23-task checklist, and the build-ready **§ Slice 1
@@ -700,28 +777,36 @@ requirements** spec.
   judge inline in `eval/run.py` rather than via a standalone `Pipeline` object;
   sufficient for the eval surface today, extractable when a CLI `ask` command
   needs it.
+- **T20 — ablation (retrieval dimension done; embedding dimension + judged run
+  pending).** The 3-rung retrieval ablation (dense → hybrid → hybrid+rerank) runs
+  in one command and is measured. **Still pending:** the **embedding-model
+  dimension** (`voyage-finance-2` / `text-embedding-3-large` vs. the bge baseline
+  — a deterministic recall@5/MRR comparison per §S1.4) and the **judged
+  groundedness columns** (need an `ANTHROPIC_API_KEY`).
 - _Note:_ the owner also edits these docs from a separate playbook chat, so treat
   filesystem state as truth and re-verify before relying on any summary.
 
 ### Pending
 - **Judged metrics run.** Generation / groundedness / unsupported-rate / $-per-run
-  are implemented but **unmeasured** until `ragauge eval` runs with an
-  `ANTHROPIC_API_KEY` (no key in this environment).
-- **T17–T19 — hybrid retrieval.** BM25 sparse index, Reciprocal Rank Fusion, and
-  cross-encoder rerank, each behind its existing config toggle.
-- **T20 — ablation table (the thesis artifact).** Iterate configs (dense →
-  +BM25/RRF → +rerank, plus the embedding-model dimension) into one table showing
-  lift per stage.
+  are implemented but **unmeasured** until `ragauge eval` (or the ablation) runs
+  with an `ANTHROPIC_API_KEY` (no key in this environment).
+- **T20 — embedding-model dimension.** The retrieval-stage ablation is done and
+  measured; the remaining piece is the embedding-model row (`voyage-finance-2` /
+  `text-embedding-3-large` vs. bge) — an LLM-free recall@5/MRR comparison added to
+  the same table.
 - **T21–T23 — model & cost sweep, CI gate, README/portfolio writeup.**
 
 ### Next steps (immediate)
 1. **Human-verify the golden set (finish T9):** read and correct every candidate
-   row, then promote it to the verified ground-truth file the harness loads.
-2. **Run `ragauge eval` with a key** to fill in the judged headline metrics
-   (groundedness, unsupported-claim rate, $/run) and validate the live generation
-   + judge path.
-3. **T17 — BM25 + RRF (T18):** first retrieval-stage lift the ablation can show;
-   recall@5 = 0.32 is the bar to beat.
+   row, then promote it to the verified ground-truth file the harness loads — this
+   gates the integrity of every number above.
+2. **Run `ragauge eval` / the ablation with a key** to fill in the judged headline
+   metrics (groundedness, unsupported-claim rate, $/run) and validate the live
+   generation + judge path.
+3. **Add the embedding-model dimension to the ablation (finish T20):**
+   `voyage-finance-2` / `text-embedding-3-large` vs. bge — a deterministic
+   recall@5/MRR row, the last piece of the thesis table.
+4. **T21–T23 — model/cost sweep, CI gate, README/portfolio writeup.**
 
 ### Technical decisions & deviations from plan
 - **Eval harness (this session):**
@@ -747,6 +832,25 @@ requirements** spec.
     answer grounded.
   - **`metrics.json` is gitignored**; the explicit baseline (`runs/`, `baseline.json`)
     is committed separately when the ablation lands.
+- **Hybrid retrieval & ablation (this session):**
+  - **BM25 implemented directly, not via `rank_bm25`.** An in-memory Okapi BM25
+    mirrors the NumPy-over-FAISS decision: identical semantics, zero native deps,
+    fully inspectable, built lazily from the existing chunk store so there is no
+    second artifact to version-drift.
+  - **RRF, not score normalization.** Dense and sparse are fused by *rank*
+    (reciprocal-rank, `rrf_k` config-driven), sidestepping the brittle
+    cross-scale normalization that comparing cosine against BM25 magnitudes would
+    otherwise require.
+  - **Rerank shipped off by default — a measured cut, not an omission.** The
+    cross-encoder stage lost to hybrid on recall@5 across three swept checkpoints
+    (two MS-MARCO sizes + `bge-reranker-base`) at 10–130× the CPU retrieval
+    latency; the stronger models sharpen MRR (the first hit) but demote multi-hop
+    second-gold chunks out of the top 5. The toggle is retained so a finance-tuned
+    cross-encoder can be re-measured later. **Willingness to cut a stage that
+    doesn't pay for itself is the thesis signal, not a gap.**
+  - **One-command ablation.** `eval/ablation.py` reuses a single
+    embedder/retriever across rungs and writes per-config `RunReport`s + a
+    markdown table to `metrics_ablation.json` (gitignored).
 - **Deviations made in Slice 1 (all documented, none contradict `DESIGN.md`):**
   - **Vector index is NumPy, not FAISS.** The design said exact flat search
     *"e.g. FAISS `IndexFlatIP`"*; we implement the identical semantics
