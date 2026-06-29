@@ -66,9 +66,13 @@ jobs:
       # groundedness check rather than failing when it can't be measured.
       - name: Run eval (25-question subset) -> metrics.json
         run: |
-          if [ -n "${ANTHROPIC_API_KEY}" ]; then
+          # Strip any stray whitespace/newline a pasted secret may carry — an
+          # API key with a trailing '\n' is an illegal HTTP header value and
+          # crashes every request before it's sent.
+          key="$(printf '%s' "${ANTHROPIC_API_KEY}" | tr -d '[:space:]')"
+          if [ -n "$key" ]; then
             echo "ANTHROPIC_API_KEY present — full judged run (recall + groundedness)."
-            uv run python -m ragauge.eval.run --limit 25 --out metrics.json
+            ANTHROPIC_API_KEY="$key" uv run python -m ragauge.eval.run --limit 25 --out metrics.json
           else
             echo "No ANTHROPIC_API_KEY (fork PR?) — deterministic recall gate only."
             uv run python -m ragauge.eval.run --no-judge --limit 25 --out metrics.json
