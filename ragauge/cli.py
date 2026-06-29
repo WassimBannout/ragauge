@@ -7,6 +7,7 @@ Subcommands map to the build-order milestones (DESIGN.md §12):
     ragauge inspect       # T6  dump chunks for a doc/section (no re-parse)
     ragauge build-index   # T7  embed chunks + build the exact dense index
     ragauge query         # T8  dense top-k for a question
+    ragauge eval          # T10/T14-T16  golden set -> metrics.json + summary
 """
 
 from __future__ import annotations
@@ -18,6 +19,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from ragauge.config import PipelineConfig
+from ragauge.eval.golden import DEFAULT_GOLDEN
+from ragauge.eval.run import DEFAULT_GENERATOR_MODEL, DEFAULT_JUDGE_MODEL
 
 DATA = Path("data")
 MANIFEST = DATA / "manifest.json"
@@ -132,6 +135,20 @@ def cmd_query(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_eval(args: argparse.Namespace) -> int:
+    from ragauge.eval.run import run
+
+    run(
+        golden_path=args.golden,
+        out_path=args.out,
+        generator_model=args.generator_model,
+        judge_model=args.judge_model,
+        no_judge=args.no_judge,
+        top_k=args.k,
+    )
+    return 0
+
+
 # --------------------------------------------------------------------------- #
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="ragauge", description=__doc__)
@@ -158,6 +175,17 @@ def build_parser() -> argparse.ArgumentParser:
     q.add_argument("question")
     q.add_argument("-k", type=int, default=5)
     q.set_defaults(func=cmd_query)
+
+    e = sub.add_parser("eval", help="run the golden set -> metrics.json + summary")
+    e.add_argument("--golden", type=Path, default=DEFAULT_GOLDEN,
+                   help="golden-set JSONL (default: committed candidate set)")
+    e.add_argument("--out", type=Path, default=Path("metrics.json"))
+    e.add_argument("--generator-model", default=DEFAULT_GENERATOR_MODEL)
+    e.add_argument("--judge-model", default=DEFAULT_JUDGE_MODEL)
+    e.add_argument("--no-judge", action="store_true",
+                   help="deterministic retrieval metrics only (no LLM calls)")
+    e.add_argument("-k", type=int, default=5)
+    e.set_defaults(func=cmd_eval)
     return p
 
 

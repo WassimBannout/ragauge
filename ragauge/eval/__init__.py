@@ -1,5 +1,9 @@
-"""Eval harness — golden set, metrics, judge, ablation, CI gate.
+"""Eval harness — golden set, metrics, judge, RunReport (DESIGN.md §7).
 
-Out of scope for Slice 1 (T9–T23). Present as a named boundary so the package
-layout already reflects the four-component architecture in DESIGN.md §2.
+Implemented: ``golden`` (load the hand-verified set), ``metrics`` (deterministic
+recall@5 / MRR / unanswerable-precision — no LLM), ``judge`` (structured
+LLM-as-judge), ``cost`` (real $/run from provider token counts), and ``run`` (the
+T10 + T14–T16 orchestrator: golden set -> pipeline -> ``metrics.json``).
+
+Still to come: BM25/RRF/rerank ablation table (T17–T20) and the CI gate (T22).
 """
