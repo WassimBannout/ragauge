@@ -205,11 +205,16 @@ def run(
     judge_model: str,
     no_judge: bool,
     top_k: int,
-    retrieval: str,
+    retrieval: str = "dense",
+    limit: int | None = None,
 ) -> RunReport:
     cfg = make_pipeline_config(retrieval, top_k)
     corpus_hash = json.loads(MANIFEST.read_text())["corpus_hash"]
     golden = load_golden(golden_path)
+    if limit is not None:
+        # Deterministic first-N subset: the golden set is stably ordered, so the
+        # CI gate and the committed baseline grade the *same* questions.
+        golden = golden[:limit]
 
     retriever, generator, judge, judge_on, reason = build_components(
         no_judge, generator_model, judge_model
@@ -333,6 +338,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-judge", action="store_true",
                    help="deterministic retrieval metrics only (no LLM calls)")
     p.add_argument("-k", "--top-k", type=int, default=5)
+    p.add_argument("--limit", type=int, default=None,
+                   help="grade only the first N golden rows (CI subset)")
     return p
 
 
@@ -347,6 +354,7 @@ def main(argv: list[str] | None = None) -> int:
         no_judge=args.no_judge,
         top_k=args.top_k,
         retrieval=args.retrieval,
+        limit=args.limit,
     )
     return 0
 

@@ -1,0 +1,682 @@
+{
+  "config_hash": "7e1319e7b4e4",
+  "corpus_hash": "60707081f218",
+  "embedding_model_id": "BAAI/bge-base-en-v1.5",
+  "generator_model_id": "claude-opus-4-8",
+  "judge_model_id": "claude-opus-4-8",
+  "timestamp": "2026-06-29T16:14:58.480692+00:00",
+  "per_question": [
+    {
+      "id": "q001",
+      "type": "single_doc",
+      "difficulty": "easy",
+      "gold_chunk_ids": [
+        "AAPL-10K-FY2025:ITEM_8:9aab489646a4",
+        "AAPL-10K-FY2025:ITEM_8:795dcc1d591d"
+      ],
+      "retrieved_ids": [
+        "AAPL-10K-FY2025:ITEM_8:866690d795dc",
+        "AAPL-10K-FY2025:ITEM_7:1fdbadc7840b",
+        "AAPL-10K-FY2025:ITEM_7:8276391cf039",
+        "AAPL-10K-FY2025:ITEM_7:914e9a8b4510",
+        "AAPL-10K-FY2025:ITEM_7:eab9d5582627"
+      ],
+      "recall_at_k": 0.0,
+      "reciprocal_rank": 0.0,
+      "retrieval_ms": 87.94493099776446,
+      "abstained": false,
+      "answer": "Apple's total net sales for fiscal year 2025 were $416,161 million (an increase of 6% from $391,035 million in 2024).",
+      "citations": [
+        "AAPL-10K-FY2025:ITEM_7:eab9d5582627"
+      ],
+      "gen_cost_usd": 0.01576,
+      "supported": true,
+      "unsupported_claims": [],
+      "groundedness_score": 1.0,
+      "judge_cost_usd": 0.0149
+    },
+    {
+      "id": "q002",
+      "type": "single_doc",
+      "difficulty": "medium",
+      "gold_chunk_ids": [
+        "AAPL-10K-FY2025:ITEM_7:eab9d5582627"
+      ],
+      "retrieved_ids": [
+        "AAPL-10K-FY2025:ITEM_7:8276391cf039",
+        "AAPL-10K-FY2025:ITEM_7:1fdbadc7840b",
+        "AAPL-10K-FY2025:ITEM_8:866690d795dc",
+        "AAPL-10K-FY2025:ITEM_7:eab9d5582627",
+        "AAPL-10K-FY2025:ITEM_8:4642e951c8cf"
+      ],
+      "recall_at_k": 1.0,
+      "reciprocal_rank": 0.25,
+      "retrieval_ms": 56.0005649967934,
+      "abstained": false,
+      "answer": "Apple reported iPhone net sales of $209,586 million in fiscal 2025, a 4% increase from $201,183 million in fiscal 2024.",
+      "citations": [
+        "AAPL-10K-FY2025:ITEM_7:eab9d5582627",
+        "AAPL-10K-FY2025:ITEM_8:4642e951c8cf"
+      ],
+      "gen_cost_usd": 0.01681,
+      "supported": true,
+      "unsupported_claims": [],
+      "groundedness_score": 1.0,
+      "judge_cost_usd": 0.014825
+    },
+    {
+      "id": "q003",
+      "type": "single_doc",
+      "difficulty": "medium",
+      "gold_chunk_ids": [
+        "AAPL-10K-FY2025:ITEM_1A:b50542c8f35e"
+      ],
+      "retrieved_ids": [
+        "AAPL-10K-FY2025:ITEM_1A:2e3878dc5ce9",
+        "AAPL-10K-FY2025:ITEM_1A:b70d60f9b054",
+        "AAPL-10K-FY2025:ITEM_1A:0242a5cad28a",
+        "AAPL-10K-FY2025:ITEM_1A:c6c08e8f53f8",
+        "NVDA-10K-FY2026:ITEM_1A:d3dc268c1aef"
+      ],
+      "recall_at_k": 0.0,
+      "reciprocal_rank": 0.0,
+      "retrieval_ms": 59.98309699862148,
+      "abstained": true,
+      "answer": "",
+      "citations": [],
+      "gen_cost_usd": 0.018845
+    },
+    {
+      "id": "q004",
+      "type": "single_doc",
+      "difficulty": "easy",
+      "gold_chunk_ids": [
+        "AAPL-10K-FY2025:ITEM_7:4cc0672a93bf"
+      ],
+      "retrieved_ids": [
+        "AAPL-10K-FY2025:ITEM_7:914e9a8b4510",
+        "AAPL-10K-FY2025:ITEM_8:7bfe13c316ab",
+        "AAPL-10K-FY2025:ITEM_8:4642e951c8cf",
+        "AAPL-10K-FY2025:ITEM_7:ac7afac41109",
+        "AAPL-10K-FY2025:ITEM_8:f7db61812dcb"
+      ],
+      "recall_at_k": 0.0,
+      "reciprocal_rank": 0.0,
+      "retrieval_ms": 49.97456099954434,
+      "abstained": true,
+      "answer": "",
+      "citations": [],
+      "gen_cost_usd": 0.015785
+    },
+    {
+      "id": "q005",
+      "type": "single_doc",
+      "difficulty": "easy",
+      "gold_chunk_ids": [
+        "AAPL-10K-FY2025:ITEM_1:66b4d3d96d1d"
+      ],
+      "retrieved_ids": [
+        "AAPL-10K-FY2025:ITEM_7:914e9a8b4510",
+        "AAPL-10K-FY2025:ITEM_8:1eb3f126ff80",
+        "AAPL-10K-FY2025:ITEM_8:f7db61812dcb",
+        "AAPL-10K-FY2025:ITEM_8:866690d795dc",
+        "AAPL-10K-FY2025:OTHER:8a44e0faff4e"
+      ],
+      "recall_at_k": 0.0,
+      "reciprocal_rank": 0.0,
+      "retrieval_ms": 120.25530399841955,
+      "abstained": true,
+      "answer": "",
+      "citations": [],
+      "gen_cost_usd": 0.016115
+    },
+    {
+      "id": "q006",
+      "type": "single_doc",
+      "difficulty": "medium",
+      "gold_chunk_ids": [
+        "AAPL-10K-FY2025:ITEM_8:ecf5494c87b5"
+      ],
+      "retrieved_ids": [
+        "AAPL-10K-FY2025:ITEM_8:41177200771e",
+        "AAPL-10K-FY2025:ITEM_8:ecf5494c87b5",
+        "AAPL-10K-FY2025:OTHER:16737aff548c",
+        "AAPL-10K-FY2025:OTHER:452841ad9617",
+        "AAPL-10K-FY2025:OTHER:fdc78b4403a3"
+      ],
+      "recall_at_k": 1.0,
+      "reciprocal_rank": 0.5,
+      "retrieval_ms": 80.2937810003641,
+      "abstained": false,
+      "answer": "Apple's independent registered public accounting firm is Ernst & Young LLP, which has served as the Company's auditor since 2009.",
+      "citations": [
+        "AAPL-10K-FY2025:ITEM_8:ecf5494c87b5"
+      ],
+      "gen_cost_usd": 0.01831,
+      "supported": true,
+      "unsupported_claims": [],
+      "groundedness_score": 1.0,
+      "judge_cost_usd": 0.017185
+    },
+    {
+      "id": "q007",
+      "type": "single_doc",
+      "difficulty": "medium",
+      "gold_chunk_ids": [
+        "AAPL-10K-FY2025:OTHER:fdc78b4403a3"
+      ],
+      "retrieved_ids": [
+        "AAPL-10K-FY2025:ITEM_8:c7d29be55ca8",
+        "AAPL-10K-FY2025:OTHER:8a44e0faff4e",
+        "AAPL-10K-FY2025:ITEM_8:44a87fd39215",
+        "AAPL-10K-FY2025:OTHER:fdc78b4403a3",
+        "AAPL-10K-FY2025:OTHER:649e27afb811"
+      ],
+      "recall_at_k": 1.0,
+      "reciprocal_rank": 0.25,
+      "retrieval_ms": 80.97605999864754,
+      "abstained": false,
+      "answer": "14,776,353,000 shares of common stock were issued and outstanding as of October 17, 2025.",
+      "citations": [
+        "AAPL-10K-FY2025:OTHER:fdc78b4403a3"
+      ],
+      "gen_cost_usd": 0.01441,
+      "supported": true,
+      "unsupported_claims": [],
+      "groundedness_score": 1.0,
+      "judge_cost_usd": 0.013815
+    },
+    {
+      "id": "q008",
+      "type": "single_doc",
+      "difficulty": "easy",
+      "gold_chunk_ids": [
+        "AAPL-10K-FY2025:OTHER:16737aff548c"
+      ],
+      "retrieved_ids": [
+        "AAPL-10K-FY2025:ITEM_7:914e9a8b4510",
+        "AAPL-10K-FY2025:ITEM_8:866690d795dc",
+        "AAPL-10K-FY2025:ITEM_7:84063197cffa",
+        "AAPL-10K-FY2025:OTHER:8a44e0faff4e",
+        "AAPL-10K-FY2025:ITEM_8:4642e951c8cf"
+      ],
+      "recall_at_k": 0.0,
+      "reciprocal_rank": 0.0,
+      "retrieval_ms": 80.50195300165797,
+      "abstained": false,
+      "answer": "Apple's 2025 fiscal year ended on September 27, 2025.",
+      "citations": [
+        "AAPL-10K-FY2025:ITEM_8:866690d795dc"
+      ],
+      "gen_cost_usd": 0.016415,
+      "supported": true,
+      "unsupported_claims": [],
+      "groundedness_score": 1.0,
+      "judge_cost_usd": 0.01605
+    },
+    {
+      "id": "q009",
+      "type": "single_doc",
+      "difficulty": "easy",
+      "gold_chunk_ids": [
+        "MSFT-10K-FY2025:ITEM_8:135592635d4f",
+        "MSFT-10K-FY2025:ITEM_7:79926990ba26"
+      ],
+      "retrieved_ids": [
+        "MSFT-10K-FY2025:ITEM_7:8a0b98ad5e1d",
+        "MSFT-10K-FY2025:ITEM_7:e27f4c08e595",
+        "MSFT-10K-FY2025:ITEM_7:342e8507ad00",
+        "MSFT-10K-FY2025:ITEM_8:ca871a688209",
+        "NVDA-10K-FY2026:ITEM_8:a71a3f6f80b4"
+      ],
+      "recall_at_k": 0.0,
+      "reciprocal_rank": 0.0,
+      "retrieval_ms": 61.24863099830691,
+      "abstained": true,
+      "answer": "",
+      "citations": [],
+      "gen_cost_usd": 0.01671
+    },
+    {
+      "id": "q010",
+      "type": "single_doc",
+      "difficulty": "easy",
+      "gold_chunk_ids": [
+        "MSFT-10K-FY2025:ITEM_7:79926990ba26"
+      ],
+      "retrieved_ids": [
+        "MSFT-10K-FY2025:ITEM_7:8a0b98ad5e1d",
+        "MSFT-10K-FY2025:ITEM_7:e27f4c08e595",
+        "MSFT-10K-FY2025:ITEM_7:342e8507ad00",
+        "MSFT-10K-FY2025:ITEM_8:ca871a688209",
+        "AAPL-10K-FY2025:ITEM_7:914e9a8b4510"
+      ],
+      "recall_at_k": 0.0,
+      "reciprocal_rank": 0.0,
+      "retrieval_ms": 65.13397299931967,
+      "abstained": true,
+      "answer": "",
+      "citations": [],
+      "gen_cost_usd": 0.017475
+    },
+    {
+      "id": "q011",
+      "type": "single_doc",
+      "difficulty": "medium",
+      "gold_chunk_ids": [
+        "MSFT-10K-FY2025:ITEM_7:79926990ba26"
+      ],
+      "retrieved_ids": [
+        "AAPL-10K-FY2025:ITEM_8:d60582f2f1bb",
+        "MSFT-10K-FY2025:ITEM_7:8a0b98ad5e1d",
+        "MSFT-10K-FY2025:ITEM_7:79926990ba26",
+        "MSFT-10K-FY2025:ITEM_7:e27f4c08e595",
+        "MSFT-10K-FY2025:ITEM_8:f3d93b8058f8"
+      ],
+      "recall_at_k": 1.0,
+      "reciprocal_rank": 0.3333333333333333,
+      "retrieval_ms": 70.9183729995857,
+      "abstained": false,
+      "answer": "Microsoft's diluted earnings per share in fiscal 2025 was $13.64.",
+      "citations": [
+        "MSFT-10K-FY2025:ITEM_8:f3d93b8058f8",
+        "MSFT-10K-FY2025:ITEM_7:79926990ba26"
+      ],
+      "gen_cost_usd": 0.019315,
+      "supported": true,
+      "unsupported_claims": [],
+      "groundedness_score": 1.0,
+      "judge_cost_usd": 0.017825
+    },
+    {
+      "id": "q012",
+      "type": "single_doc",
+      "difficulty": "easy",
+      "gold_chunk_ids": [
+        "MSFT-10K-FY2025:ITEM_1:431a9adda814"
+      ],
+      "retrieved_ids": [
+        "MSFT-10K-FY2025:ITEM_1:431a9adda814",
+        "MSFT-10K-FY2025:ITEM_8:9ce438948dce",
+        "MSFT-10K-FY2025:ITEM_8:ca871a688209",
+        "MSFT-10K-FY2025:ITEM_7:8a0b98ad5e1d",
+        "MSFT-10K-FY2025:ITEM_8:3bfc44c93f54"
+      ],
+      "recall_at_k": 1.0,
+      "reciprocal_rank": 1.0,
+      "retrieval_ms": 79.64835899838363,
+      "abstained": false,
+      "answer": "As of June 30, 2025, Microsoft employed approximately 228,000 people on a full-time basis, with 125,000 in the U.S. and 103,000 internationally.",
+      "citations": [
+        "MSFT-10K-FY2025:ITEM_1:431a9adda814"
+      ],
+      "gen_cost_usd": 0.019145,
+      "supported": true,
+      "unsupported_claims": [],
+      "groundedness_score": 1.0,
+      "judge_cost_usd": 0.01809
+    },
+    {
+      "id": "q013",
+      "type": "single_doc",
+      "difficulty": "easy",
+      "gold_chunk_ids": [
+        "MSFT-10K-FY2025:OTHER:27a89f04b25b"
+      ],
+      "retrieved_ids": [
+        "MSFT-10K-FY2025:ITEM_1:759e8f4558a1",
+        "MSFT-10K-FY2025:OTHER:d87714a321c1",
+        "MSFT-10K-FY2025:OTHER:27a89f04b25b",
+        "MSFT-10K-FY2025:ITEM_1:bcefca9131b4",
+        "MSFT-10K-FY2025:OTHER:7e59c4297748"
+      ],
+      "recall_at_k": 1.0,
+      "reciprocal_rank": 0.3333333333333333,
+      "retrieval_ms": 58.13283300085459,
+      "abstained": false,
+      "answer": "Microsoft is incorporated in Washington.",
+      "citations": [
+        "MSFT-10K-FY2025:OTHER:27a89f04b25b"
+      ],
+      "gen_cost_usd": 0.022595,
+      "supported": true,
+      "unsupported_claims": [],
+      "groundedness_score": 1.0,
+      "judge_cost_usd": 0.02236
+    },
+    {
+      "id": "q014",
+      "type": "single_doc",
+      "difficulty": "medium",
+      "gold_chunk_ids": [
+        "MSFT-10K-FY2025:ITEM_8:135592635d4f"
+      ],
+      "retrieved_ids": [
+        "MSFT-10K-FY2025:ITEM_7:8a0b98ad5e1d",
+        "MSFT-10K-FY2025:ITEM_7:c2d36bdd2695",
+        "AAPL-10K-FY2025:ITEM_7:914e9a8b4510",
+        "MSFT-10K-FY2025:ITEM_7:342e8507ad00",
+        "MSFT-10K-FY2025:ITEM_7:e27f4c08e595"
+      ],
+      "recall_at_k": 0.0,
+      "reciprocal_rank": 0.0,
+      "retrieval_ms": 65.3256590012461,
+      "abstained": false,
+      "answer": "The evidence states that Microsoft's research and development expenses increased $3.0 billion or 10% in fiscal 2025 compared with fiscal 2024, but it does not provide the absolute total R&D spending figure for fiscal 2025.",
+      "citations": [
+        "MSFT-10K-FY2025:ITEM_7:c2d36bdd2695"
+      ],
+      "gen_cost_usd": 0.019555,
+      "supported": true,
+      "unsupported_claims": [],
+      "groundedness_score": 1.0,
+      "judge_cost_usd": 0.01776
+    },
+    {
+      "id": "q015",
+      "type": "single_doc",
+      "difficulty": "easy",
+      "gold_chunk_ids": [
+        "NVDA-10K-FY2026:ITEM_8:1ddb43052c1e"
+      ],
+      "retrieved_ids": [
+        "NVDA-10K-FY2026:ITEM_8:96210ed85b91",
+        "NVDA-10K-FY2026:ITEM_8:a71a3f6f80b4",
+        "NVDA-10K-FY2026:ITEM_8:453fc32e2b9a",
+        "NVDA-10K-FY2026:ITEM_8:2aa5618f7ad3",
+        "NVDA-10K-FY2026:ITEM_8:4691716b12d1"
+      ],
+      "recall_at_k": 0.0,
+      "reciprocal_rank": 0.0,
+      "retrieval_ms": 51.38352499852772,
+      "abstained": false,
+      "answer": "NVIDIA's total revenue for fiscal year 2026 (year ended January 25, 2026) was $215,938 million.",
+      "citations": [
+        "NVDA-10K-FY2026:ITEM_8:4691716b12d1"
+      ],
+      "gen_cost_usd": 0.01547,
+      "supported": true,
+      "unsupported_claims": [],
+      "groundedness_score": 1.0,
+      "judge_cost_usd": 0.014415
+    },
+    {
+      "id": "q016",
+      "type": "single_doc",
+      "difficulty": "medium",
+      "gold_chunk_ids": [
+        "NVDA-10K-FY2026:ITEM_8:1ddb43052c1e"
+      ],
+      "retrieved_ids": [
+        "NVDA-10K-FY2026:ITEM_8:453fc32e2b9a",
+        "NVDA-10K-FY2026:ITEM_8:2aa5618f7ad3",
+        "NVDA-10K-FY2026:ITEM_7:ff5e2940d005",
+        "NVDA-10K-FY2026:ITEM_8:08ebfea4247a",
+        "NVDA-10K-FY2026:ITEM_8:96210ed85b91"
+      ],
+      "recall_at_k": 0.0,
+      "reciprocal_rank": 0.0,
+      "retrieval_ms": 55.421862001821864,
+      "abstained": true,
+      "answer": "",
+      "citations": [],
+      "gen_cost_usd": 0.01321
+    },
+    {
+      "id": "q017",
+      "type": "single_doc",
+      "difficulty": "medium",
+      "gold_chunk_ids": [
+        "NVDA-10K-FY2026:ITEM_7:ff5e2940d005"
+      ],
+      "retrieved_ids": [
+        "NVDA-10K-FY2026:ITEM_8:96210ed85b91",
+        "NVDA-10K-FY2026:ITEM_8:ba30cba63394",
+        "NVDA-10K-FY2026:ITEM_8:453fc32e2b9a",
+        "NVDA-10K-FY2026:ITEM_8:c883868e8b6e",
+        "NVDA-10K-FY2026:ITEM_8:2aa5618f7ad3"
+      ],
+      "recall_at_k": 0.0,
+      "reciprocal_rank": 0.0,
+      "retrieval_ms": 67.61900299898116,
+      "abstained": true,
+      "answer": "",
+      "citations": [],
+      "gen_cost_usd": 0.01508
+    },
+    {
+      "id": "q018",
+      "type": "single_doc",
+      "difficulty": "hard",
+      "gold_chunk_ids": [
+        "NVDA-10K-FY2026:ITEM_7:37aec113361b"
+      ],
+      "retrieved_ids": [
+        "NVDA-10K-FY2026:ITEM_8:96210ed85b91",
+        "NVDA-10K-FY2026:ITEM_7:37aec113361b",
+        "NVDA-10K-FY2026:ITEM_8:f2a393a31741",
+        "NVDA-10K-FY2026:ITEM_8:453fc32e2b9a",
+        "NVDA-10K-FY2026:ITEM_8:4691716b12d1"
+      ],
+      "recall_at_k": 1.0,
+      "reciprocal_rank": 0.5,
+      "retrieval_ms": 72.11593600004562,
+      "abstained": false,
+      "answer": "NVIDIA's customer base was highly concentrated in fiscal 2026. Among direct customers, one represented 22% of total revenue and another represented 14% of total revenue, both primarily attributable to the Compute & Networking segment. The company also generates significant revenue from a limited number of indirect customers, some individually representing 10% or more of revenue. Revenue is concentrated among a limited number of direct and indirect customers.",
+      "citations": [
+        "NVDA-10K-FY2026:ITEM_8:96210ed85b91",
+        "NVDA-10K-FY2026:ITEM_7:37aec113361b",
+        "NVDA-10K-FY2026:ITEM_8:f2a393a31741"
+      ],
+      "gen_cost_usd": 0.022675,
+      "supported": true,
+      "unsupported_claims": [],
+      "groundedness_score": 1.0,
+      "judge_cost_usd": 0.018275
+    },
+    {
+      "id": "q019",
+      "type": "single_doc",
+      "difficulty": "medium",
+      "gold_chunk_ids": [
+        "NVDA-10K-FY2026:ITEM_7:dd9925c4de29"
+      ],
+      "retrieved_ids": [
+        "NVDA-10K-FY2026:ITEM_7:dd9925c4de29",
+        "NVDA-10K-FY2026:ITEM_7:1f06c2f9421f",
+        "NVDA-10K-FY2026:ITEM_8:4691716b12d1",
+        "NVDA-10K-FY2026:ITEM_8:96210ed85b91",
+        "NVDA-10K-FY2026:ITEM_1:fb647b06b3e8"
+      ],
+      "recall_at_k": 1.0,
+      "reciprocal_rank": 1.0,
+      "retrieval_ms": 60.9620579998591,
+      "abstained": false,
+      "answer": "In fiscal 2026, NVIDIA's Data Center networking revenue grew 142% (driven by the NVLink compute fabric for GB200/GB300 systems and growth in Ethernet and InfiniBand platforms), and Data Center computing revenue grew 59% (driven by demand for the Blackwell computing platform).",
+      "citations": [
+        "NVDA-10K-FY2026:ITEM_7:dd9925c4de29"
+      ],
+      "gen_cost_usd": 0.018825,
+      "supported": true,
+      "unsupported_claims": [],
+      "groundedness_score": 1.0,
+      "judge_cost_usd": 0.016405
+    },
+    {
+      "id": "q020",
+      "type": "single_doc",
+      "difficulty": "easy",
+      "gold_chunk_ids": [
+        "NVDA-10K-FY2026:ITEM_1:1efd2cb5594e"
+      ],
+      "retrieved_ids": [
+        "NVDA-10K-FY2026:ITEM_8:453fc32e2b9a",
+        "NVDA-10K-FY2026:ITEM_8:96210ed85b91",
+        "NVDA-10K-FY2026:ITEM_8:2aa5618f7ad3",
+        "NVDA-10K-FY2026:ITEM_8:08ebfea4247a",
+        "NVDA-10K-FY2026:ITEM_8:d5e1b1b15cf9"
+      ],
+      "recall_at_k": 0.0,
+      "reciprocal_rank": 0.0,
+      "retrieval_ms": 55.74728999999934,
+      "abstained": true,
+      "answer": "",
+      "citations": [],
+      "gen_cost_usd": 0.01488
+    },
+    {
+      "id": "q021",
+      "type": "multi_hop",
+      "difficulty": "hard",
+      "gold_chunk_ids": [
+        "AAPL-10K-FY2025:ITEM_8:9aab489646a4",
+        "MSFT-10K-FY2025:ITEM_8:135592635d4f",
+        "NVDA-10K-FY2026:ITEM_8:1ddb43052c1e"
+      ],
+      "retrieved_ids": [
+        "NVDA-10K-FY2026:ITEM_8:96210ed85b91",
+        "NVDA-10K-FY2026:ITEM_7:dd9925c4de29",
+        "NVDA-10K-FY2026:ITEM_8:4691716b12d1",
+        "NVDA-10K-FY2026:ITEM_1:8045c51240ef",
+        "NVDA-10K-FY2026:ITEM_1:6dd8de2207f9"
+      ],
+      "recall_at_k": 0.0,
+      "reciprocal_rank": 0.0,
+      "retrieval_ms": 91.21849700022722,
+      "abstained": true,
+      "answer": "",
+      "citations": [],
+      "gen_cost_usd": 0.01745
+    },
+    {
+      "id": "q022",
+      "type": "multi_hop",
+      "difficulty": "hard",
+      "gold_chunk_ids": [
+        "AAPL-10K-FY2025:ITEM_1:66b4d3d96d1d",
+        "MSFT-10K-FY2025:ITEM_1:431a9adda814",
+        "NVDA-10K-FY2026:ITEM_1:1efd2cb5594e"
+      ],
+      "retrieved_ids": [
+        "NVDA-10K-FY2026:ITEM_1:5c40f3db8822",
+        "NVDA-10K-FY2026:ITEM_1:d3c7930ec2aa",
+        "NVDA-10K-FY2026:ITEM_1:8045c51240ef",
+        "NVDA-10K-FY2026:ITEM_8:d5e1b1b15cf9",
+        "NVDA-10K-FY2026:ITEM_1:6dd8de2207f9"
+      ],
+      "recall_at_k": 0.0,
+      "reciprocal_rank": 0.0,
+      "retrieval_ms": 138.93095700041158,
+      "abstained": true,
+      "answer": "",
+      "citations": [],
+      "gen_cost_usd": 0.020115
+    },
+    {
+      "id": "q023",
+      "type": "multi_hop",
+      "difficulty": "medium",
+      "gold_chunk_ids": [
+        "AAPL-10K-FY2025:ITEM_7:4cc0672a93bf",
+        "NVDA-10K-FY2026:ITEM_8:1ddb43052c1e"
+      ],
+      "retrieved_ids": [
+        "MSFT-10K-FY2025:ITEM_7:c2d36bdd2695",
+        "NVDA-10K-FY2026:ITEM_7:1f06c2f9421f",
+        "NVDA-10K-FY2026:ITEM_8:a71a3f6f80b4",
+        "AAPL-10K-FY2025:ITEM_7:914e9a8b4510",
+        "NVDA-10K-FY2026:ITEM_7:90cbfd91c759"
+      ],
+      "recall_at_k": 0.0,
+      "reciprocal_rank": 0.0,
+      "retrieval_ms": 69.74055500177201,
+      "abstained": true,
+      "answer": "",
+      "citations": [],
+      "gen_cost_usd": 0.013115
+    },
+    {
+      "id": "q024",
+      "type": "multi_hop",
+      "difficulty": "hard",
+      "gold_chunk_ids": [
+        "AAPL-10K-FY2025:ITEM_8:9aab489646a4",
+        "NVDA-10K-FY2026:ITEM_7:f720d59b7075"
+      ],
+      "retrieved_ids": [
+        "NVDA-10K-FY2026:ITEM_1:8045c51240ef",
+        "NVDA-10K-FY2026:ITEM_7:90cbfd91c759",
+        "NVDA-10K-FY2026:ITEM_8:96210ed85b91",
+        "NVDA-10K-FY2026:ITEM_7:dd9925c4de29",
+        "NVDA-10K-FY2026:ITEM_1:6dd8de2207f9"
+      ],
+      "recall_at_k": 0.0,
+      "reciprocal_rank": 0.0,
+      "retrieval_ms": 74.965980998968,
+      "abstained": true,
+      "answer": "",
+      "citations": [],
+      "gen_cost_usd": 0.01929
+    },
+    {
+      "id": "q025",
+      "type": "multi_hop",
+      "difficulty": "medium",
+      "gold_chunk_ids": [
+        "AAPL-10K-FY2025:OTHER:16737aff548c",
+        "MSFT-10K-FY2025:OTHER:27a89f04b25b",
+        "NVDA-10K-FY2026:OTHER:819f1851263d"
+      ],
+      "retrieved_ids": [
+        "AAPL-10K-FY2025:OTHER:655b6a6d52ac",
+        "AAPL-10K-FY2025:ITEM_7:84063197cffa",
+        "AAPL-10K-FY2025:ITEM_8:080a64d7e86d",
+        "NVDA-10K-FY2026:ITEM_8:1ddb43052c1e",
+        "AAPL-10K-FY2025:ITEM_8:f2a2b546d5be"
+      ],
+      "recall_at_k": 0.0,
+      "reciprocal_rank": 0.0,
+      "retrieval_ms": 75.54462899861392,
+      "abstained": false,
+      "answer": "NVIDIA (NVDA). Its fiscal year ends in late January (FY2026 ended Jan 25, 2026), which is earlier in the calendar year than Apple's fiscal year, which ends on the last Saturday of September.",
+      "citations": [
+        "NVDA-10K-FY2026:ITEM_8:1ddb43052c1e",
+        "AAPL-10K-FY2025:ITEM_7:84063197cffa"
+      ],
+      "gen_cost_usd": 0.02231,
+      "supported": true,
+      "unsupported_claims": [],
+      "groundedness_score": 1.0,
+      "judge_cost_usd": 0.019785
+    }
+  ],
+  "aggregates": {
+    "n_questions": 25,
+    "n_answerable": 25,
+    "top_k": 5,
+    "recall_at_5": 0.32,
+    "mrr": 0.1667,
+    "unanswerable_precision": 0.0,
+    "unanswerable_recall": null,
+    "n_abstained": 12,
+    "n_correct_abstentions": 0,
+    "retrieval_latency_ms": {
+      "p50": 69.74055500177201,
+      "p95": 120.25530399841955,
+      "max": 138.93095700041158
+    },
+    "n_answered": 13,
+    "n_judged": 13,
+    "groundedness_supported_rate": 1.0,
+    "unsupported_claim_rate": 0.0,
+    "mean_groundedness_score": 1.0,
+    "generation_latency_ms": {
+      "p50": 2601.9875120000506,
+      "p95": 5672.819033999986,
+      "max": 12569.495793999522
+    },
+    "generator_prompt_version": "gen-v1",
+    "judge_prompt_version": "judge-v1"
+  },
+  "cost_usd": 0.661355
+}
