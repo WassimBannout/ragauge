@@ -1,0 +1,363 @@
+{
+  "golden_path": "data/golden/candidates.jsonl",
+  "corpus_chunks": 789,
+  "n_rows": 30,
+  "judged": true,
+  "judge_model": "claude-opus-4-8",
+  "cost_usd": 0.22596,
+  "distribution": {
+    "type": {
+      "single_doc": 20,
+      "multi_hop": 5,
+      "unanswerable": 5
+    },
+    "difficulty": {
+      "easy": 12,
+      "medium": 13,
+      "hard": 5
+    },
+    "company_gold_chunks": {
+      "AAPL": 14,
+      "MSFT": 10,
+      "NVDA": 11
+    }
+  },
+  "rows": [
+    {
+      "id": "q001",
+      "type": "single_doc",
+      "difficulty": "easy",
+      "structural_issues": [],
+      "grounding": {
+        "supported": true,
+        "score": 1.0,
+        "grounded": true,
+        "unsupported_claims": []
+      }
+    },
+    {
+      "id": "q002",
+      "type": "single_doc",
+      "difficulty": "medium",
+      "structural_issues": [],
+      "grounding": {
+        "supported": true,
+        "score": 1.0,
+        "grounded": true,
+        "unsupported_claims": []
+      }
+    },
+    {
+      "id": "q003",
+      "type": "single_doc",
+      "difficulty": "medium",
+      "structural_issues": [],
+      "grounding": {
+        "supported": true,
+        "score": 1.0,
+        "grounded": true,
+        "unsupported_claims": []
+      }
+    },
+    {
+      "id": "q004",
+      "type": "single_doc",
+      "difficulty": "easy",
+      "structural_issues": [],
+      "grounding": {
+        "supported": true,
+        "score": 1.0,
+        "grounded": true,
+        "unsupported_claims": []
+      }
+    },
+    {
+      "id": "q005",
+      "type": "single_doc",
+      "difficulty": "easy",
+      "structural_issues": [],
+      "grounding": {
+        "supported": true,
+        "score": 1.0,
+        "grounded": true,
+        "unsupported_claims": []
+      }
+    },
+    {
+      "id": "q006",
+      "type": "single_doc",
+      "difficulty": "medium",
+      "structural_issues": [],
+      "grounding": {
+        "supported": true,
+        "score": 1.0,
+        "grounded": true,
+        "unsupported_claims": []
+      }
+    },
+    {
+      "id": "q007",
+      "type": "single_doc",
+      "difficulty": "medium",
+      "structural_issues": [],
+      "grounding": {
+        "supported": true,
+        "score": 1.0,
+        "grounded": true,
+        "unsupported_claims": []
+      }
+    },
+    {
+      "id": "q008",
+      "type": "single_doc",
+      "difficulty": "easy",
+      "structural_issues": [],
+      "grounding": {
+        "supported": true,
+        "score": 1.0,
+        "grounded": true,
+        "unsupported_claims": []
+      }
+    },
+    {
+      "id": "q009",
+      "type": "single_doc",
+      "difficulty": "easy",
+      "structural_issues": [],
+      "grounding": {
+        "supported": true,
+        "score": 1.0,
+        "grounded": true,
+        "unsupported_claims": []
+      }
+    },
+    {
+      "id": "q010",
+      "type": "single_doc",
+      "difficulty": "easy",
+      "structural_issues": [],
+      "grounding": {
+        "supported": true,
+        "score": 1.0,
+        "grounded": true,
+        "unsupported_claims": []
+      }
+    },
+    {
+      "id": "q011",
+      "type": "single_doc",
+      "difficulty": "medium",
+      "structural_issues": [],
+      "grounding": {
+        "supported": true,
+        "score": 1.0,
+        "grounded": true,
+        "unsupported_claims": []
+      }
+    },
+    {
+      "id": "q012",
+      "type": "single_doc",
+      "difficulty": "easy",
+      "structural_issues": [],
+      "grounding": {
+        "supported": true,
+        "score": 1.0,
+        "grounded": true,
+        "unsupported_claims": []
+      }
+    },
+    {
+      "id": "q013",
+      "type": "single_doc",
+      "difficulty": "easy",
+      "structural_issues": [],
+      "grounding": {
+        "supported": true,
+        "score": 1.0,
+        "grounded": true,
+        "unsupported_claims": []
+      }
+    },
+    {
+      "id": "q014",
+      "type": "single_doc",
+      "difficulty": "medium",
+      "structural_issues": [],
+      "grounding": {
+        "supported": true,
+        "score": 1.0,
+        "grounded": true,
+        "unsupported_claims": []
+      }
+    },
+    {
+      "id": "q015",
+      "type": "single_doc",
+      "difficulty": "easy",
+      "structural_issues": [],
+      "grounding": {
+        "supported": true,
+        "score": 1.0,
+        "grounded": true,
+        "unsupported_claims": []
+      }
+    },
+    {
+      "id": "q016",
+      "type": "single_doc",
+      "difficulty": "medium",
+      "structural_issues": [],
+      "grounding": {
+        "supported": true,
+        "score": 1.0,
+        "grounded": true,
+        "unsupported_claims": []
+      }
+    },
+    {
+      "id": "q017",
+      "type": "single_doc",
+      "difficulty": "medium",
+      "structural_issues": [],
+      "grounding": {
+        "supported": true,
+        "score": 1.0,
+        "grounded": true,
+        "unsupported_claims": []
+      }
+    },
+    {
+      "id": "q018",
+      "type": "single_doc",
+      "difficulty": "hard",
+      "structural_issues": [],
+      "grounding": {
+        "supported": true,
+        "score": 1.0,
+        "grounded": true,
+        "unsupported_claims": []
+      }
+    },
+    {
+      "id": "q019",
+      "type": "single_doc",
+      "difficulty": "medium",
+      "structural_issues": [],
+      "grounding": {
+        "supported": true,
+        "score": 1.0,
+        "grounded": true,
+        "unsupported_claims": []
+      }
+    },
+    {
+      "id": "q020",
+      "type": "single_doc",
+      "difficulty": "easy",
+      "structural_issues": [],
+      "grounding": {
+        "supported": true,
+        "score": 1.0,
+        "grounded": true,
+        "unsupported_claims": []
+      }
+    },
+    {
+      "id": "q021",
+      "type": "multi_hop",
+      "difficulty": "hard",
+      "structural_issues": [],
+      "grounding": {
+        "supported": true,
+        "score": 1.0,
+        "grounded": true,
+        "unsupported_claims": []
+      }
+    },
+    {
+      "id": "q022",
+      "type": "multi_hop",
+      "difficulty": "hard",
+      "structural_issues": [],
+      "grounding": {
+        "supported": true,
+        "score": 1.0,
+        "grounded": true,
+        "unsupported_claims": []
+      }
+    },
+    {
+      "id": "q023",
+      "type": "multi_hop",
+      "difficulty": "medium",
+      "structural_issues": [],
+      "grounding": {
+        "supported": true,
+        "score": 1.0,
+        "grounded": true,
+        "unsupported_claims": []
+      }
+    },
+    {
+      "id": "q024",
+      "type": "multi_hop",
+      "difficulty": "hard",
+      "structural_issues": [],
+      "grounding": {
+        "supported": true,
+        "score": 1.0,
+        "grounded": true,
+        "unsupported_claims": []
+      }
+    },
+    {
+      "id": "q025",
+      "type": "multi_hop",
+      "difficulty": "medium",
+      "structural_issues": [],
+      "grounding": {
+        "supported": true,
+        "score": 1.0,
+        "grounded": true,
+        "unsupported_claims": []
+      }
+    },
+    {
+      "id": "q026",
+      "type": "unanswerable",
+      "difficulty": "medium",
+      "structural_issues": [],
+      "grounding": null
+    },
+    {
+      "id": "q027",
+      "type": "unanswerable",
+      "difficulty": "medium",
+      "structural_issues": [],
+      "grounding": null
+    },
+    {
+      "id": "q028",
+      "type": "unanswerable",
+      "difficulty": "easy",
+      "structural_issues": [],
+      "grounding": null
+    },
+    {
+      "id": "q029",
+      "type": "unanswerable",
+      "difficulty": "hard",
+      "structural_issues": [],
+      "grounding": null
+    },
+    {
+      "id": "q030",
+      "type": "unanswerable",
+      "difficulty": "easy",
+      "structural_issues": [],
+      "grounding": null
+    }
+  ],
+  "report_markdown": "## Golden-set verification \u2014 \u2705 structurally clean\n\n`data/golden/candidates.jsonl` \u00b7 30 rows \u00b7 corpus 789 chunks \u00b7 judge `claude-opus-4-8`.\n\n- distribution: {'single_doc': 20, 'multi_hop': 5, 'unanswerable': 5} \u00b7 {'easy': 12, 'medium': 13, 'hard': 5}\n\nAll rows pass the structural checks (ids resolve, answerable/unanswerable cardinality, multi-hop spread, difficulty).\n\n### Self-consistency (gold answer vs. its own cited chunks) \u2014 25/25 grounded\n\nEvery answerable gold answer grounds in its cited chunks. \u2705\n\n<sub>self-consistency judge cost: $0.2260</sub>\n\n> Final sign-off is still human (DESIGN.md \u00a78); this narrows the read to flagged rows, it doesn't replace it.\n"
+}

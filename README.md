@@ -19,8 +19,9 @@ are the first judged numbers, from the committed CI baseline
 answers 13 of 25 and abstains on the rest (recall@5 0.32, so it declines when the
 gold chunk isn't retrieved), so groundedness/unsupported are over those 13 answered
 rows. A full **hybrid + model-sweep** judged run (the richer picture) is the next
-step; the 30-row golden set is candidate rows with human verification pending —
-**honest numbers or none.***
+step. The 30-row golden set passes **automated verification** (structural + 25/25
+answers self-consistent with their cited chunks, via `ragauge.eval.verify`); human
+sign-off of the flagged judgment-calls is the last step — **honest numbers or none.***
 
 ### Retrieval ablation — recall lift per stage (`python -m ragauge.eval.ablation --no-judge`)
 
@@ -108,8 +109,9 @@ gate (T22) are built and tested.** The deterministic ablation (dense → +BM25/R
 +rerank) is measured, and the judged generation path now has its first measured
 numbers from the committed CI baseline (dense, 25-question subset). Both the
 recall@5 and groundedness gates are live against `evals/baseline.json`. The golden
-set is drafted (30 candidate rows, human verification pending). Next:
-human-verify the golden set, run the full hybrid + model-sweep judged picture, add
+set is drafted (30 candidate rows) and passes automated verification (structural +
+25/25 self-consistency); human sign-off is the last step. Next:
+sign off the golden set, run the full hybrid + model-sweep judged picture, add
 the embedding-model dimension to the ablation (T20), then the portfolio writeup
 (**T23**). See
 [`DESIGN.md`](DESIGN.md) §12 (build order) and
@@ -119,13 +121,13 @@ Verified on 3 real 10-Ks (AAPL FY2025, MSFT FY2025, NVDA FY2026): **789
 structure-aware chunks**, section-labelled (Item 1 / 1A / 7 / 8), a stamped exact
 dense index, and a config-toggleable `Retrieve` seam (dense + BM25 → RRF →
 cross-encoder rerank) returning ranked evidence with per-stage provenance.
-**52 unit tests** pass offline.
+**62 unit tests** pass offline.
 
 ## Run it (Slice 1)
 
 ```bash
 uv sync --extra dev                        # CPU-only torch via the pinned wheel index (pyproject [tool.uv.sources]); no CUDA
-uv run pytest                              # 52 tests, no model download needed
+uv run pytest                              # 62 tests, no model download needed
 
 ragauge acquire                            # download AAPL/MSFT/NVDA 10-Ks + manifest (EDGAR)
 ragauge ingest                             # parse → segment → chunk → data/chunks.jsonl
@@ -152,6 +154,10 @@ python -m ragauge.eval.ablation              # + groundedness / $/run (needs ANT
 python -m ragauge.eval.sweep                 # haiku/sonnet/opus: groundedness vs $/query vs p50/p95
                                              #   + $/run with prompt caching on vs off → dashboard.md
 python -m ragauge.eval.sweep --limit 3       # cheap smoke run over 3 questions
+
+# Verify the golden set is trustworthy (T9): structural checks + self-consistency
+python -m ragauge.eval.verify                 # structural only (free): ids resolve, cardinality, spread
+python -m ragauge.eval.verify --judge         # + grade each gold answer vs its cited chunks (LLM)
 ```
 
 ## CI quality gate (blocks regressions)
