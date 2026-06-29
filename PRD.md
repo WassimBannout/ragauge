@@ -121,8 +121,8 @@ is reached on the shortest viable path. `★` marks a task that produces a
 reviewer-facing artifact or headline number; the rest are the plumbing that earns it.
 
 **Status legend:** `- [ ]` pending · `- [x]` done · annotate partials inline.
-**Progress at a glance:** ~21 / 23 implemented (T1–T8, T10, T12–T22; T9 drafted
-but unverified, T23 pending) — **Slice 1 (ingest + dense retrieval), the eval
+**Progress at a glance:** ~21 / 23 implemented (T1–T8, T10, T12–T22; T9 drafted +
+automated-verification-passed, human sign-off & T23 pending) — **Slice 1 (ingest + dense retrieval), the eval
 harness, the hybrid retrieval ablation, the model & cost sweep, and the
 PR-blocking CI gate are built and tested.** The deterministic retrieval ablation
 is measured: **dense recall@5 = 0.32 → hybrid (BM25 + RRF) 0.51 (+0.19) → +rerank
@@ -182,12 +182,14 @@ golden set (T9)**, a **full hybrid + model-sweep judged run**, the
 #### Phase 3 — First measurable signal (no LLM — cheap, honest, fast)
 
 - [ ] **T9 · Golden set v0, hand-verified. ★** *(partial: 30 candidate rows
-  drafted + grounded at `data/golden/candidates.jsonl` with a coverage table and
-  verification note; **human verification of every row still pending** — that's
-  the integrity step, not yet done.)* ~30 rows (`id, question,
-  gold_answer, gold_chunk_ids, type, difficulty`); ~15% `unanswerable`, several
-  `multi_hop`; **AI drafts, human verifies every row**, stratified by
-  type × section × difficulty.
+  drafted + grounded at `data/golden/candidates.jsonl`; **automated verification
+  now passes** — `ragauge.eval.verify` reports all 30 structurally clean and
+  **25/25** answerable answers self-consistent with their cited chunks (judged,
+  $0.23; report at `evals/golden_verification.json`). Remaining: human sign-off of
+  question phrasing + the flagged judgment-call rows / unanswerable-absence.)*
+  ~30 rows (`id, question, gold_answer, gold_chunk_ids, type, difficulty`); ~15%
+  `unanswerable`, several `multi_hop`; **AI drafts, automation + human verify**,
+  stratified by type × section × difficulty.
   - *Acceptance:* ~30 rows committed as version-controlled ground truth; every row carries verified `gold_chunk_ids` (existing `chunk_id`s); coverage table shows the type/section/difficulty spread; a note records the by-hand verification. *(Artifact: the labeled set.)*
   - *Metric:* enables every downstream metric · *Depends on:* T6 (needs real `chunk_id`s); questions can be drafted earlier
 - [x] **T10 · Retrieval-metrics harness on dense-only. ★ FIRST NUMBER.**
@@ -664,9 +666,10 @@ The retrieval stack is config-toggleable end-to-end —
 rung, and **`python -m ragauge.eval.ablation`** sweeps all three in one command,
 emitting the markdown comparison table + per-config `RunReport`s to
 `metrics_ablation.json`. **`python -m ragauge.eval.sweep`** runs the 3-model cost/
-quality sweep → `dashboard.md`, and **`python -m ragauge.eval.gate`** compares a
-run to `evals/baseline.json` and exits non-zero on a regression (the CI gate).
-**52 unit tests green** (`pytest`), all offline.
+quality sweep → `dashboard.md`, **`python -m ragauge.eval.gate`** compares a run to
+`evals/baseline.json` and exits non-zero on a regression (the CI gate), and
+**`python -m ragauge.eval.verify --judge`** checks the golden set is structurally
+clean and self-consistent. **62 unit tests green** (`pytest`), all offline.
 
 **Measured (deterministic, no LLM), on the 30-row candidate golden set**
 (`corpus_hash=60707081f218`):
@@ -757,13 +760,14 @@ tested:**
 - **RunReport assembly (T16).** `ragauge/eval/run.py` writes a `RunReport` to
   `metrics.json`: per-question rows + aggregates + `(config_hash, corpus_hash,
   embedding / generator / judge model ids, timestamp, cost)`.
-- **Tests.** 52 unit tests green: Slice 1 + the deterministic metrics,
+- **Tests.** 62 unit tests green: Slice 1 + the deterministic metrics,
   cost-from-token-counts, and judge-capability gate; BM25 ranking, RRF fusion, the
   rerank toggle, and per-stage provenance across the hybrid stack; **8 for the
   sweep's cache-aware cost math / tier ordering / recommendation (T21); 10 for the
-  CI gate's threshold edges and skip-don't-fail behaviour (T22)**. The judged path
-  is validated end-to-end against a stubbed client (citation filtering, the
-  abstention gates, None/refusal handling, telemetry, and metric aggregation).
+  CI gate's threshold edges and skip-don't-fail behaviour (T22); 10 for the
+  golden-set verifier's structural checks (T9)**. The judged path is validated
+  end-to-end against a stubbed client (citation filtering, the abstention gates,
+  None/refusal handling, telemetry, and metric aggregation).
 
 **Hybrid retrieval + the ablation (T17–T20), coded · tested:**
 - **BM25 sparse retrieval, toggleable (T17).** `ragauge/retrieve/bm25.py` — an
@@ -820,17 +824,32 @@ tested:**
   groundedness 1.00 (13 answered of 25), unsupported 0.00, $0.66, 25-q dense — so
   **both** the recall@5 and groundedness gates are live.
 
+**Golden-set verifier (T9 tooling), coded · tested · run:**
+- **`ragauge/eval/verify.py`.** Structural checks (ids resolve, answerable vs.
+  unanswerable cardinality, multi-hop ≥2 filings, valid difficulty) plus an opt-in
+  **self-consistency** pass that reuses the harness's own `Judge` to grade each gold
+  answer against the chunks it cites — catching the dominant error class (answer
+  doesn't match its evidence) automatically. Result on the candidate set: **30/30
+  structurally clean, 25/25 answerable answers grounded** (`evals/golden_verification.json`,
+  $0.23). Flags rows for human review; never rewrites the ground truth.
+
 **Planning (pre-existing):** design & architecture ([`DESIGN.md`](./DESIGN.md)),
 epic + PRD + the 23-task checklist, and the build-ready **§ Slice 1
 requirements** spec.
 
 ### Partial / in progress
-- **T9 — golden set (drafted, not yet verified).** 30 candidate rows are drafted
-  and **grounded in real chunk text** at `data/golden/candidates.jsonl`, with a
-  coverage table and verification note (`data/golden/README.md`): 20 single_doc /
-  5 multi_hop / 5 unanswerable (17%), all five Item sections covered, every
-  `gold_chunk_id` confirmed to exist in the corpus. **The by-hand verification of
-  every row — the integrity step the whole project hinges on — is still pending.**
+- **T9 — golden set (drafted; automated verification passed, human sign-off
+  pending).** 30 candidate rows are drafted and **grounded in real chunk text** at
+  `data/golden/candidates.jsonl` (20 single_doc / 5 multi_hop / 5 unanswerable,
+  all five Item sections, every `gold_chunk_id` in the corpus). New this session:
+  **`ragauge.eval.verify` (T9 tooling)** — structural checks + an LLM
+  self-consistency pass that reuses the harness's own `Judge` to grade each gold
+  answer against the chunks it cites. Result: **all 30 structurally clean, 25/25
+  answerable answers grounded** ($0.23, `evals/golden_verification.json`). Since a
+  10-K fact's cited chunk *is* the source of truth, grounded == correct-per-filing
+  — this clears the dominant error class automatically. **Still human:** question
+  phrasing and the judgment-call rows (unanswerable-absence, q024 framing) — the
+  read is now a short triage, not 30 rows cold.
 - **T11 — pipeline seam (deviation).** The harness composes retrieve → generate →
   judge inline in `eval/run.py` rather than via a standalone `Pipeline` object;
   sufficient for the eval surface today, extractable when a CLI `ask` command
@@ -846,10 +865,13 @@ requirements** spec.
   filesystem state as truth and re-verify before relying on any summary.
 
 ### Pending
-- **T9 — by-hand golden-set verification.** 30 candidate rows are drafted and
-  chunk-grounded, but every row's question/answer/`gold_chunk_id` still needs human
-  sign-off before the numbers above can be called ground truth. **This gates the
-  integrity of every metric.**
+- **T9 — human sign-off on the golden set.** Automated verification now passes
+  (structural + 25/25 self-consistency via `ragauge.eval.verify`), which clears the
+  mechanical error classes. The remaining human step is narrow: confirm question
+  phrasing reads well, and adjudicate the flagged judgment-calls (the verifier
+  checks grounding, not *absence*, so the 5 unanswerable rows still need a human to
+  confirm the fact is genuinely missing). Until that sign-off, the numbers rest on
+  a strongly-checked-but-not-final ground truth.
 - **Full hybrid + sweep judged run.** The judged numbers so far are the **dense**
   25-question CI baseline. Still to measure: a judged run on **hybrid** retrieval
   (recall 0.51 → more answered rows → a more representative groundedness/$), and the
@@ -859,29 +881,31 @@ requirements** spec.
   measured; the remaining piece is the embedding-model row (`voyage-finance-2` /
   `text-embedding-3-large` vs. bge) — an LLM-free recall@5/MRR comparison added to
   the same table.
-- **T22 — exhibit the gate.** Both gates are live against the committed baseline;
-  the remaining acceptance artifact is setting the repo `ANTHROPIC_API_KEY` secret
-  and opening a demonstrably-failing PR to show the block. *Note: the groundedness
-  baseline is high-variance at n=13 answered — one ungrounded answer (−0.077) trips
-  the 0.05 gate; that's the gate working, but widen the tolerance or the subset if
-  it proves flaky once the golden set is verified.*
+- **T22 — exhibited end-to-end (acceptance met).** Both gates are live against the
+  committed baseline; the green run (PR #2) passed and merged, and a deliberate
+  regression (PR #3, recall@5 0.32 → 0.00) was **caught, commented, and blocked**
+  — the demonstrably-failing PR the acceptance asks for. CI also reproduced the
+  baseline numbers from a fresh EDGAR build (determinism check). *Note: the
+  groundedness baseline is high-variance at n=13 answered — one ungrounded answer
+  (−0.077) trips the 0.05 gate; widen the tolerance or subset if it proves flaky
+  once the golden set is signed off. Optional follow-ups: warm the corpus cache so
+  PRs don't rebuild from EDGAR, and a `push`-trigger so the README badge tracks
+  main.*
 - **T23 — README/portfolio writeup.** Surface the ablation table, dashboard, CI
   badge, and headline metrics up top with the per-decision rationale.
 
 ### Next steps (immediate)
-1. **Human-verify the golden set (finish T9):** read and correct every candidate
-   row, then promote it to the verified ground-truth file the harness loads — this
-   gates the integrity of every number above.
+1. **Human sign-off on the golden set (finish T9):** automation has cleared the
+   mechanical checks — the human read is now a short triage of question phrasing +
+   the flagged judgment-calls (confirm the 5 unanswerables are genuinely absent),
+   then promote `candidates.jsonl` to the verified ground-truth file.
 2. **Run the full judged picture:** a judged **hybrid** eval and the **3-model
    sweep** over the whole golden set, to replace the dense smoke/baseline numbers
    with representative groundedness / $/run and to populate `dashboard.md`.
 3. **Add the embedding-model dimension to the ablation (finish T20):**
    `voyage-finance-2` / `text-embedding-3-large` vs. bge — a deterministic
    recall@5/MRR row, the last piece of the thesis table.
-4. **Exhibit the CI gate (finish T22):** with the repo `ANTHROPIC_API_KEY` secret
-   set, open a PR that trips the gate (recall or groundedness below baseline) to
-   demonstrate the block.
-5. **T23 — portfolio writeup:** finalize the README narrative around the
+4. **T23 — portfolio writeup:** finalize the README narrative around the
    now-current headline metrics, ablation, dashboard, and CI badge.
 
 ### Technical decisions & deviations from plan
