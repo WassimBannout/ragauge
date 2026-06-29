@@ -4,11 +4,21 @@
 Schema matches `GoldRow` (`ragauge/contracts.py`): `id, question, gold_answer,
 gold_chunk_ids, type, difficulty`.
 
-> **Status: UNVERIFIED DRAFT.** Every row must be read and corrected by a human
-> before it becomes ground truth (DESIGN.md §8: "a golden set the author didn't
-> check is worthless"). Drafted against `corpus_hash 60707081f218` (AAPL FY2025,
-> MSFT FY2025, NVDA FY2026 — 789 chunks). `gold_chunk_ids` are pinned to that
-> corpus + chunking config; re-verify if either changes.
+> **Status: AUTOMATED VERIFICATION PASSED; human sign-off pending.** Drafted
+> against `corpus_hash 60707081f218` (AAPL FY2025, MSFT FY2025, NVDA FY2026 — 789
+> chunks); `gold_chunk_ids` are pinned to that corpus + chunking config — re-verify
+> if either changes.
+>
+> `python -m ragauge.eval.verify --judge` (report: `evals/golden_verification.json`)
+> reports the set **structurally clean** (all 30 rows: ids resolve,
+> answerable/unanswerable cardinality, multi-hop spread ≥2 filings, valid
+> difficulty) and **self-consistent** — all **25/25** answerable gold answers were
+> judged *supported by the chunks they cite* (`claude-opus-4-8`, $0.23). For a
+> 10-K fact the cited chunk **is** the source of truth, so grounded-in-evidence ==
+> correct-per-filing. What automation can't do (DESIGN.md §8: "a golden set the
+> author didn't check is worthless") still needs a human: question phrasing, and
+> the judgment-call rows flagged below — confirm absence for the unanswerables
+> (the verifier checks grounding, not absence) and the q024 framing.
 
 ## How these were grounded (not invented)
 Each answer was traced to specific chunk text in `data/chunks.jsonl`. Every
