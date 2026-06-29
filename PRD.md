@@ -121,10 +121,14 @@ is reached on the shortest viable path. `★` marks a task that produces a
 reviewer-facing artifact or headline number; the rest are the plumbing that earns it.
 
 **Status legend:** `- [ ]` pending · `- [x]` done · annotate partials inline.
-**Progress at a glance:** 8 / 23 done — **Slice 1 (ingest + dense retrieval, T1–T8)
-complete and verified end-to-end** on AAPL/MSFT/NVDA FY2025–26 10-Ks (789 chunks,
-dense top-k working, query p95 < 200 ms). Next up: **T9** (golden set) → **T10**
-(the first recall@5 number). See § Implementation status for deviations.
+**Progress at a glance:** 14 / 23 done (T1–T8 + T10, T12–T16; T9, T11 partial) —
+**Slice 1 (ingest + dense retrieval) and the eval harness are built and tested.**
+The deterministic dense-only baseline is measured (**recall@5 = 0.32, MRR = 0.17**
+on the 30-row golden set; retrieval p95 ~189 ms); the grounded generator + dual-
+trigger abstention + structured LLM-as-judge + RunReport are implemented and stub-
+validated, awaiting an `ANTHROPIC_API_KEY` run for the judged numbers. Next up:
+**human-verify the golden set**, then the **ablation (T17–T20)**. See
+§ Implementation status for deviations.
 
 #### Phase 0 — Foundations (clean boundaries = architect signal)
 
@@ -173,13 +177,19 @@ dense top-k working, query p95 < 200 ms). Next up: **T9** (golden set) → **T10
 
 #### Phase 3 — First measurable signal (no LLM — cheap, honest, fast)
 
-- [ ] **T9 · Golden set v0, hand-verified. ★** ~30 rows (`id, question,
+- [ ] **T9 · Golden set v0, hand-verified. ★** *(partial: 30 candidate rows
+  drafted + grounded at `data/golden/candidates.jsonl` with a coverage table and
+  verification note; **human verification of every row still pending** — that's
+  the integrity step, not yet done.)* ~30 rows (`id, question,
   gold_answer, gold_chunk_ids, type, difficulty`); ~15% `unanswerable`, several
   `multi_hop`; **AI drafts, human verifies every row**, stratified by
   type × section × difficulty.
   - *Acceptance:* ~30 rows committed as version-controlled ground truth; every row carries verified `gold_chunk_ids` (existing `chunk_id`s); coverage table shows the type/section/difficulty spread; a note records the by-hand verification. *(Artifact: the labeled set.)*
   - *Metric:* enables every downstream metric · *Depends on:* T6 (needs real `chunk_id`s); questions can be drafted earlier
-- [ ] **T10 · Retrieval-metrics harness on dense-only. ★ FIRST NUMBER.**
+- [x] **T10 · Retrieval-metrics harness on dense-only. ★ FIRST NUMBER.**
+  *(done: `ragauge eval --no-judge` → `ragauge/eval/metrics.py` + `run.py`;
+  measured **recall@5 = 0.32, MRR = 0.17** on the candidate golden set, tied to
+  config+corpus hash, no LLM.)*
   recall@5, MRR, unanswerable-precision computed without any LLM; reproducible
   from a config hash.
   - *Acceptance:* one command runs the golden set through dense retrieval and reports recall@5, MRR, unanswerable-precision; output tied to (config hash, corpus hash); this is the **honest dense-only baseline**. *(Artifact: the baseline.)*
@@ -187,16 +197,28 @@ dense top-k working, query p95 < 200 ms). Next up: **T9** (golden set) → **T10
 
 #### Phase 4 — Generation
 
-- [ ] **T11 · Pipeline seam (Retrieve → Generate).** Single `Pipeline` object that
-  composes the stages behind one call; harness/CLI talk only to it.
+- [ ] **T11 · Pipeline seam (Retrieve → Generate).** *(deviation: the harness
+  composes retrieve→generate→judge inline in `eval/run.py` rather than via a
+  standalone `Pipeline` object — sufficient for the eval surface; a dedicated
+  `Pipeline` can be extracted when the CLI `ask` command lands.)* Single
+  `Pipeline` object that composes the stages behind one call; harness/CLI talk
+  only to it.
   - *Acceptance:* `pipeline(question | config)` runs retrieve→generate end-to-end; internal stages never called directly by harness/CLI.
   - *Metric:* — · *Depends on:* T8
-- [ ] **T12 · Grounded answer with inline citations. ★** Generation (latest Claude;
+- [x] **T12 · Grounded answer with inline citations. ★** *(done:
+  `ragauge/generate/generator.py`; `claude-opus-4-8` via `messages.parse`
+  structured output `{abstained, answer, citations}`, model id/pricing verified
+  against the live API ref; fabricated citations are filtered to the supplied
+  evidence; `Answer` carries token/cost/latency. Needs an API-key run to exercise
+  live.)* Generation (latest Claude;
   **verify model id/pricing against the live API ref before wiring**) constrained
   to retrieved evidence, citing `chunk_id`s per claim.
   - *Acceptance:* answers cite `chunk_id`s for supported claims and use only supplied chunks; `Answer` carries token/cost/latency telemetry. *(Demo: ask it.)*
   - *Metric:* — (sets up groundedness) · *Depends on:* T11
-- [ ] **T13 · Insufficient-evidence path. ★** Dual-trigger abstention:
+- [x] **T13 · Insufficient-evidence path. ★** *(done: pre-generation evidence
+  gate (`retrieval.min_score` / empty evidence) abstains before any LLM call, +
+  post-generation `abstained=true`; a refusal / unparseable output also abstains
+  rather than fabricates. No citations on abstentions.)* Dual-trigger abstention:
   pre-generation evidence gate (weak/low-score retrieval short-circuits before an
   LLM call) + post-generation honesty; returns structured `abstained=true` with no
   fabricated citations.
@@ -205,17 +227,29 @@ dense top-k working, query p95 < 200 ms). Next up: **T9** (golden set) → **T10
 
 #### Phase 5 — Generation metrics & RunReport
 
-- [ ] **T14 · LLM-as-judge (Pydantic schema). ★** Structured claim-level
+- [x] **T14 · LLM-as-judge (Pydantic schema). ★** *(done:
+  `ragauge/eval/judge.py`; `messages.parse` → `JudgeVerdict{supported,
+  unsupported_claims, score}`, no free-text parsing; rolls up into
+  groundedness/supported-rate + unsupported-claim rate; prompt+schema versions
+  recorded in the RunReport; judge≥generator capability gate enforced. Needs an
+  API-key run for live numbers.)* Structured claim-level
   grounded/unsupported labels that roll up into rates; judge prompt + schema
   versioned with the run.
   - *Acceptance:* judge emits validated structured output (no free-text parsing); claim labels aggregate into groundedness + unsupported-claim rate; prompt/schema version recorded.
   - *Metric:* **groundedness / supported-claim rate, unsupported-claim rate** · *Depends on:* T12
-- [ ] **T15 · Ops telemetry — cost & latency.** $/run via the **provider
-  token-counting API** (not a generic tokenizer); p50/p95 latency per-stage and
-  end-to-end.
+- [x] **T15 · Ops telemetry — cost & latency.** *(done: `ragauge/eval/cost.py`;
+  $/run from real provider `usage` token counts (not a generic tokenizer),
+  per-stage p50/p95 for retrieval and generation. Pricing table verified against
+  the live API ref. Rerank's latency cost surfaces once T19 lands.)* $/run via
+  the **provider token-counting API** (not a generic tokenizer); p50/p95 latency
+  per-stage and end-to-end.
   - *Acceptance:* a run reports real $/run from provider token counts and p50/p95 latency broken out by stage; rerank's latency cost is attributable.
   - *Metric:* **$ per eval run, p95 latency** · *Depends on:* T12
-- [ ] **T16 · RunReport assembly + persistence.** Append-only per-config report:
+- [x] **T16 · RunReport assembly + persistence.** *(done: `eval/run.py` writes a
+  `RunReport` to `metrics.json` — per-question rows + aggregates + (config hash,
+  corpus hash, embedding/generator/judge model ids, timestamp, cost). Append-only
+  history file is a small follow-up once the ablation needs it.)* Append-only
+  per-config report:
   per-question results + aggregates + run metadata (config hash, corpus hash,
   model id, timestamp, cost).
   - *Acceptance:* each run persists one `RunReport` reproducible from (config hash, corpus hash, model id); history is append-only for regression tracking.
@@ -553,43 +587,47 @@ The slice is done when:
 > (per [`CLAUDE.md`](./CLAUDE.md)). The checklist above is the per-task tracker;
 > this section is the prose snapshot a reviewer reads first.
 
-**Phase:** **Slice 1 (ingest + dense retrieval, T1–T8) is built, tested, and
-verified end-to-end.** Raw 10-Ks → structure-aware chunks → stamped exact dense
-index → a config-toggleable `Retrieve(query, config)` seam returning ranked,
-section-labelled evidence.
-**Progress:** 8 / 23 subtasks coded. **Next up: T9 (golden set) → T10 (first
-recall@5 number).** The README headline metrics remain intentionally blank: the
-first *number* is T10, which sits one task past this slice. No generation, judge,
-or `RunReport` code exists yet — by design.
+**Phase:** **Slice 1 (ingest + dense retrieval, T1–T8) and the eval harness
+(T10, T12–T16) are built and tested.** The full path exists end-to-end: raw 10-Ks
+→ structure-aware chunks → stamped exact dense index → config-toggleable
+`Retrieve` seam → grounded, cited generation (or abstention) → structured
+LLM-as-judge → a persisted `RunReport`. The **deterministic dense-only baseline is
+measured**; the judged generation metrics are implemented and stub-validated but
+need an `ANTHROPIC_API_KEY` run (no key in the build environment).
+**Progress:** 14 / 23 subtasks coded (T1–T8 + T10, T12–T16; T9 and T11 partial).
+**Next up: human-verify the golden set, then the BM25 + RRF + rerank ablation
+(T17–T20).**
 
-**What runs today (`ragauge` CLI):** `acquire` (EDGAR → manifest + corpus_hash) ·
-`ingest` (parse → segment → chunk → JSONL store) · `inspect` (dump chunks by
-doc/section, no re-parse) · `build-index` (embed + exact flat index) · `query`
-(dense top-k). **19 unit tests green** (`pytest`), all offline (a hash-based test
-embedder needs no model download).
+**What runs today (`ragauge` CLI):** `acquire` · `ingest` · `inspect` ·
+`build-index` · `query` (Slice 1) · **`eval`** — `ragauge eval --no-judge` runs
+the golden set through dense retrieval and reports recall@5 / MRR /
+unanswerable-precision with **no LLM and no API key**, writing a `RunReport` to
+`metrics.json`; `ragauge eval` (with a key) adds grounded generation + the judge.
+**26 unit tests green** (`pytest`), all offline.
 
-**Verified on the real corpus** (AAPL FY2025, MSFT FY2025, NVDA FY2026 — 3
-filings / 3 companies, `corpus_hash=60707081f218`): **789 chunks** (667 prose /
-122 table), healthy four-Item section coverage on every filing, **byte-identical
-`chunk_id`s + chunk order across a re-ingest** (acceptance #8), and sane dense
-relevance — e.g. a supply-chain-risk query returns an all-`ITEM_1A` top-5 at
-0.73–0.76 cosine. Dense query latency **96–186 ms** (NFR4 target < 250 ms p95).
+**Measured (deterministic, no LLM), on the 30-row candidate golden set:**
+**recall@5 = 0.32**, **MRR = 0.17**, retrieval **p50/p95 ≈ 150 / 189 ms**, tied to
+`(config_hash=1840a64bd655, corpus_hash=60707081f218)`. recall@5 = 0.32 is the
+**honest dense-only baseline** — bge underperforms on the numeric/table questions
+that dominate a 10-K golden set, which is precisely the headroom the hybrid
+ablation (T17–T20) exists to earn back, measured.
 
 ### Headline-metrics status
 
-The headline numbers (mirrored at the top of [`README.md`](./README.md)) are
-**intentionally unmeasured** until the eval harness exists — *honest numbers or
-none*. Where each one lands:
+Mirrored at the top of [`README.md`](./README.md). Retrieval metrics are now
+**measured**; the judged metrics are wired and validated on stubbed calls but
+remain **unmeasured** until a run with an API key — *honest numbers or none.*
 
-| Metric | Status | Lands at |
-|---|---|---|
-| **recall@5** | not yet measured | **T10** (next) |
-| **MRR / unanswerable-precision** | not yet measured | **T10** |
-| **groundedness / supported-claim rate** | not yet measured | **T14** (LLM judge) |
-| **unsupported-claim rate** | not yet measured | **T14** (LLM judge) |
-| **$ / eval run** | not yet measured | **T15** (provider token-counting) |
-| **p95 latency (dense retrieval)** | ✅ **~96–186 ms** measured | Slice 1; end-to-end at T15 |
-| **recall lift per stage** (ablation) | not yet measured | **T20** |
+| Metric | Status |
+|---|---|
+| **recall@5** (dense-only) | ✅ **0.32** measured (T10, no LLM) |
+| **MRR** (dense-only) | ✅ **0.17** measured (T10, no LLM) |
+| **unanswerable-precision** | wired; n/a in retrieval-only mode (needs the generator's abstention signal — T13) |
+| **groundedness / supported-claim rate** | wired (T14); needs a judged run |
+| **unsupported-claim rate** | wired (T14); needs a judged run |
+| **$ / eval run** | wired (T15, real provider token counts); needs a judged run |
+| **p95 latency (dense retrieval)** | ✅ **~189 ms** measured over the golden set |
+| **recall lift per stage** (ablation) | not yet measured (lands at T20) |
 
 ### Completed features
 
@@ -614,33 +652,101 @@ none*. Where each one lands:
   model+corpus+chunking hashes so a stale index can't be served.
 - **Dense Retrieve seam (T8).** Config-toggleable `Retrieve(query, config) →
   RetrievedChunk[]` with `stage_provenance="dense"`; the only surface the harness
-  / CLI call. `ragauge` CLI: `acquire / ingest / inspect / build-index / query`.
-- **Tests.** 19 unit tests green, all offline (hash-based test embedder).
+  / CLI call.
+
+**Eval harness — retrieval baseline + generation + judge (T10, T12–T16), coded ·
+tested:**
+- **Retrieval metrics, no LLM (T10).** `ragauge/eval/metrics.py` —
+  recall@5, MRR, unanswerable-precision, p50/p95 latency as pure functions of the
+  ranking; reproducible from `(config_hash, corpus_hash)`. **The first number:
+  recall@5 = 0.32, MRR = 0.17.**
+- **Grounded generation + citations (T12).** `ragauge/generate/generator.py` —
+  `claude-opus-4-8` via `messages.parse` **structured output**
+  `{abstained, answer, citations}`; answers cite `chunk_id`s and use only the
+  supplied evidence; citations the model invents are filtered to the retrieved
+  set; `Answer` carries token / cost / latency telemetry.
+- **Dual-trigger abstention (T13).** A **pre-generation evidence gate**
+  (`retrieval.min_score` / empty evidence) abstains *before* any LLM call, plus
+  **post-generation** `abstained=true`; a refusal / unparseable output also
+  abstains rather than fabricating. No citations on abstentions.
+- **LLM-as-judge, structured (T14).** `ragauge/eval/judge.py` — `messages.parse`
+  → Pydantic `JudgeVerdict{supported, unsupported_claims, score}` (no free-text
+  parsing); claim labels roll up into groundedness / supported-rate and
+  unsupported-claim rate; prompt + schema versions recorded in the `RunReport`.
+- **Ops telemetry (T15).** `ragauge/eval/cost.py` — **$/run from real provider
+  `usage` token counts** (not a generic tokenizer); per-stage p50/p95 latency;
+  pricing table verified against the live Claude API reference. A
+  **judge ≥ generator capability gate** is enforced before any judged run.
+- **RunReport assembly (T16).** `ragauge/eval/run.py` writes a `RunReport` to
+  `metrics.json`: per-question rows + aggregates + `(config_hash, corpus_hash,
+  embedding / generator / judge model ids, timestamp, cost)`.
+- **Tests.** 26 unit tests green (19 Slice 1 + 7 covering the deterministic
+  metrics, cost-from-token-counts, and the judge-capability gate); the judged path
+  is validated end-to-end against a stubbed client (citation filtering, the
+  abstention gates, None/refusal handling, telemetry, and metric aggregation).
 
 **Planning (pre-existing):** design & architecture ([`DESIGN.md`](./DESIGN.md)),
 epic + PRD + the 23-task checklist, and the build-ready **§ Slice 1
 requirements** spec.
 
 ### Partial / in progress
-- _Nothing partial in Slice 1._ T1–T8 are complete; T9+ not started.
+- **T9 — golden set (drafted, not yet verified).** 30 candidate rows are drafted
+  and **grounded in real chunk text** at `data/golden/candidates.jsonl`, with a
+  coverage table and verification note (`data/golden/README.md`): 20 single_doc /
+  5 multi_hop / 5 unanswerable (17%), all five Item sections covered, every
+  `gold_chunk_id` confirmed to exist in the corpus. **The by-hand verification of
+  every row — the integrity step the whole project hinges on — is still pending.**
+- **T11 — pipeline seam (deviation).** The harness composes retrieve → generate →
+  judge inline in `eval/run.py` rather than via a standalone `Pipeline` object;
+  sufficient for the eval surface today, extractable when a CLI `ask` command
+  needs it.
 - _Note:_ the owner also edits these docs from a separate playbook chat, so treat
   filesystem state as truth and re-verify before relying on any summary.
 
 ### Pending
-- **T9–T23.** No golden set, generation, judge, ablation, sweep, or CI gate yet.
-  Critical path to first signal: **T9 (golden set) → T10 (recall@5 baseline)**;
-  the thesis artifact (ablation table) is **T20**.
+- **Judged metrics run.** Generation / groundedness / unsupported-rate / $-per-run
+  are implemented but **unmeasured** until `ragauge eval` runs with an
+  `ANTHROPIC_API_KEY` (no key in this environment).
+- **T17–T19 — hybrid retrieval.** BM25 sparse index, Reciprocal Rank Fusion, and
+  cross-encoder rerank, each behind its existing config toggle.
+- **T20 — ablation table (the thesis artifact).** Iterate configs (dense →
+  +BM25/RRF → +rerank, plus the embedding-model dimension) into one table showing
+  lift per stage.
+- **T21–T23 — model & cost sweep, CI gate, README/portfolio writeup.**
 
 ### Next steps (immediate)
-1. **T9 — golden set v0:** ~30 hand-verified rows pinned to the real `chunk_id`s
-   now in `data/chunks.jsonl` (gold rows reference live ids; stratify by
-   type × section × difficulty; ~15% unanswerable).
-2. **T10 — retrieval-metrics harness:** run the golden set through the dense seam,
-   report recall@5 / MRR / unanswerable-precision tied to (config hash, corpus
-   hash) — **the first honest number.**
-3. **(stretch) tune chunking** against T10 recall@5 before locking ids for T9.
+1. **Human-verify the golden set (finish T9):** read and correct every candidate
+   row, then promote it to the verified ground-truth file the harness loads.
+2. **Run `ragauge eval` with a key** to fill in the judged headline metrics
+   (groundedness, unsupported-claim rate, $/run) and validate the live generation
+   + judge path.
+3. **T17 — BM25 + RRF (T18):** first retrieval-stage lift the ablation can show;
+   recall@5 = 0.32 is the bar to beat.
 
 ### Technical decisions & deviations from plan
+- **Eval harness (this session):**
+  - **Structured output via `messages.parse` + Pydantic** for both the generator
+    (`GenerationOutput{abstained, answer, citations}`) and the judge
+    (`JudgeVerdict{supported, unsupported_claims, score}`) — verdicts are parsed
+    and aggregated, never regexed out of prose (DESIGN §7.3). `temperature` /
+    `budget_tokens` are omitted (removed on Opus 4.8).
+  - **Models verified against the live API reference at wiring time:** generator
+    and judge both default to **`claude-opus-4-8`** (judge ≥ generator holds since
+    they're equal; a capability-rank gate enforces this for any override). Pricing
+    `$5 / $25` per 1M (input / output) is taken from the same reference.
+  - **Cost from real provider token counts.** `$/run` is computed from
+    `response.usage.input_tokens / output_tokens` (the provider's own counts), not
+    a generic tokenizer — the locked decision below, now realized in
+    `eval/cost.py`.
+  - **Deterministic metrics are LLM-free and run without the SDK or a key.** The
+    `anthropic` import is **lazy**, so recall@5 / MRR / unanswerable-precision (and
+    CI's cheap gate) never depend on an LLM call (DESIGN §7.3: the harness is not
+    hostage to judge variance).
+  - **Fail-safe on refusal / unparseable output:** the generator abstains and the
+    judge scores 0 / unsupported, rather than silently fabricating or counting an
+    answer grounded.
+  - **`metrics.json` is gitignored**; the explicit baseline (`runs/`, `baseline.json`)
+    is committed separately when the ablation lands.
 - **Deviations made in Slice 1 (all documented, none contradict `DESIGN.md`):**
   - **Vector index is NumPy, not FAISS.** The design said exact flat search
     *"e.g. FAISS `IndexFlatIP`"*; we implement the identical semantics
@@ -663,29 +769,28 @@ requirements** spec.
     (96–186 ms/query).
 - **Decisions confirmed at wiring time (per `CLAUDE.md`):** `bge-base-en-v1.5`
   verified as 768-dim / 512-token-max; bge asymmetric query instruction wired;
-  normalized embeddings → cosine via inner product. The other refinements below
-  stand unchanged.
-- **Decisions now made (Slice 1, recorded per `CLAUDE.md`):**
+  normalized embeddings → cosine via inner product. Generator/judge model ids and
+  pricing verified against the live Claude API reference (above).
+- **Decisions now made (recorded per `CLAUDE.md`):**
   - **Embedding model:** local **`bge-base-en-v1.5`** (768-dim, 512-token max) via
     `sentence-transformers` as the reproducible, zero-cost baseline — *and* the
     embedding model is **promoted to a first-class, LLM-free ablation dimension**
     (vs. finance-domain `voyage-finance-2` and `text-embedding-3-large`), scored by
-    recall@5/MRR. See §S1.4. Exact ids/dims verified at wiring time.
-  - **Vector index:** local **exact flat search** (e.g. FAISS `IndexFlatIP` over
-    normalized vectors) — at this corpus size, exact search keeps recall@5 free of
-    ANN approximation error. ANN deferred as a scaling concern (§DESIGN 14). §S1.5.
-  - **Chunk store:** inspectable **JSONL keyed by `chunk_id`** (SQLite acceptable);
-    vector index holds geometry only, store holds text + metadata. §S1.5.
+    recall@5/MRR. See §S1.4.
+  - **Vector index:** local **exact flat search** over normalized vectors — at this
+    corpus size, exact search keeps recall@5 free of ANN approximation error. ANN
+    deferred as a scaling concern (§DESIGN 14). §S1.5.
+  - **Chunk store:** inspectable **JSONL keyed by `chunk_id`**; vector index holds
+    geometry only. §S1.5.
   - **`chunk_id`:** deterministic content-addressing
     `{doc_id}:{section}:{sha256(text)[:12]}` — no UUIDs/timestamps. §S1.3.
-  - **Chunking defaults (tunable, validated at T10):** ~350–450 content tokens,
-    ~10–15% overlap, bounded by the embedding model's 512-token max. §S1.2.
+  - **Generator + judge model:** **`claude-opus-4-8`** for both (a measured pick to
+    revisit in the T21 sweep), with a judge ≥ generator capability gate.
 - **Decisions still open (resolve at implementation, not before):** BM25 library,
-  cross-encoder rerank model, exact Claude model ids for generator vs. judge. Per
-  `DESIGN.md` §11 and `CLAUDE.md`, Claude model ids/pricing are **verified against
-  the live API reference at wiring time** and the generator/judge picks are a
-  *measured* outcome of the T21 sweep, not a guess.
-- **Cost accounting** will use the **provider token-counting API**, not a generic
-  tokenizer (locked decision; affects T15/T21).
+  cross-encoder rerank model, and the final generator-vs-judge model split — the
+  latter a *measured* outcome of the T21 sweep, not a guess.
+- **Cost accounting** uses the **provider token counts** returned on every
+  response, not a generic tokenizer (locked decision, now realized; affects
+  T15/T21).
 
 ---

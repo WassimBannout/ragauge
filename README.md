@@ -2,23 +2,27 @@
 
 ## Headline metrics
 
-*Current as of 2026-06-29 — Slice 1 (ingest + dense retrieval) shipped; eval
-harness not built yet, so the judged numbers are honestly unmeasured.*
+*Current as of 2026-06-29 — eval harness built. Retrieval metrics are the
+**honest dense-only baseline** on the 30-row golden set (candidates; human
+verification pending). Judged generation metrics need an `ANTHROPIC_API_KEY` run
+and are unmeasured in this offline environment.*
 
 | Metric | Value | Status |
 |---|---|---|
-| **recall@5** | — | lands at **T10** (next task) |
-| **groundedness / supported-claim rate** | — | lands at **T14** (LLM judge) |
-| **unsupported-claim rate** | — | lands at **T14** (LLM judge) |
-| **$ / eval run** | — | lands at **T15** (provider token-counting) |
-| p95 latency (dense retrieval) | **~96–186 ms** | ✅ measured (Slice 1); end-to-end at T15 |
+| **recall@5** (dense-only) | **0.32** | ✅ measured — `T10`, deterministic, no LLM |
+| **MRR** (dense-only) | **0.17** | ✅ measured — `T10`, deterministic, no LLM |
+| **groundedness / supported-claim rate** | — | wired (`T14`); needs a judged run |
+| **unsupported-claim rate** | — | wired (`T14`); needs a judged run |
+| **$ / eval run** | — | wired (`T15`, provider token counts); needs a judged run |
+| p95 latency (dense retrieval) | **~189 ms** | ✅ measured over the golden set |
 
-> **Why dashes, not numbers?** The headline of this project is *honest*
-> measurement. recall@5 is the first eval number and it lands one task away at
-> **T10**; the judged generation metrics (groundedness, unsupported-claim rate)
-> and real $/run arrive with the harness at **T14–T16**, and the full ablation
-> table at **T20**. Values are shown blank rather than guessed — **honest numbers
-> or none.** See [DESIGN.md](DESIGN.md) §7 and
+> **The numbers are deliberately unflattering.** recall@5 = 0.32 is the *honest*
+> dense-only baseline — bge struggles on the numeric/table questions that
+> dominate a 10-K golden set. That gap is the point: it's the headroom the
+> BM25 + RRF + rerank ablation (**T17–T20**) has to earn back, measured. The
+> judged metrics (groundedness, unsupported-claim rate, $/run) are implemented and
+> validated on stubbed calls; one `ragauge eval` run with an API key fills them
+> in. **Honest numbers or none.** See [DESIGN.md](DESIGN.md) §7 and
 > [PRD.md → Implementation status](PRD.md#implementation-status).
 
 An **eval-first** retrieval-augmented QA system over SEC 10-K filings. The
@@ -38,11 +42,13 @@ CI gate that blocks quality regressions.
 
 ## Status
 
-🟢 **Slice 1 (ingest + dense retrieval, T1–T8) built, tested, and verified
-end-to-end — 8 / 23 subtasks done.** Next: **T9** (golden set) → **T10** (first
-recall@5 number). The headline metrics above stay blank until that first eval
-run — *honest numbers or none.* See [`DESIGN.md`](DESIGN.md) §12 (build order)
-and [`PRD.md` → Implementation status](PRD.md#implementation-status).
+🟢 **Slice 1 (ingest + dense retrieval) + the eval harness are built and
+tested.** The deterministic retrieval baseline (recall@5 / MRR) is measured; the
+golden set is drafted (30 candidate rows, human verification pending) and the
+judged generation path is implemented and stub-validated, awaiting an
+`ANTHROPIC_API_KEY` run. Next: human-verify the golden set, then the
+BM25 + RRF + rerank ablation (**T17–T20**). See [`DESIGN.md`](DESIGN.md) §12
+(build order) and [`PRD.md` → Implementation status](PRD.md#implementation-status).
 
 Verified on 3 real 10-Ks (AAPL FY2025, MSFT FY2025, NVDA FY2026): **789
 structure-aware chunks**, section-labelled (Item 1 / 1A / 7 / 8), a stamped exact
@@ -62,5 +68,20 @@ ragauge inspect --doc AAPL --section ITEM_1A   # eyeball chunks + metadata
 ragauge build-index                        # embed (bge-base-en-v1.5) → indexes/dense/
 ragauge query "What supply-chain risks does the company face?"
 ```
+
+## Run the eval harness
+
+```bash
+ragauge eval --no-judge                    # deterministic baseline: recall@5, MRR → metrics.json
+ragauge eval                               # full run: + grounded generation & LLM-as-judge
+                                           #   (needs ANTHROPIC_API_KEY; judge ≥ generator enforced)
+```
+
+`--no-judge` runs **offline with no API key** — recall@5 / MRR /
+unanswerable-precision are pure functions of the ranking, so the baseline never
+depends on an LLM. A full run adds the grounded generator (cites `chunk_id`s or
+abstains) and the structured LLM-as-judge (Pydantic `{supported,
+unsupported_claims, score}`), writing per-question results + aggregates +
+real `$/run` to `metrics.json`.
 
 > Set a contact `User-Agent` for EDGAR via `SEC_USER_AGENT` in `.env` (SEC fair-access policy).
