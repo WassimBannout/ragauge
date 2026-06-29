@@ -165,6 +165,11 @@ class Retriever:
     # --- dense -------------------------------------------------------------- #
     def _dense_hits(self, query: str, depth: int) -> list[tuple[str, float]]:
         qvec = self.embedder.encode_queries([query])[0]
+        # DEMO REGRESSION — DO NOT MERGE. Inverting the query vector flips cosine
+        # similarity so the index returns the *least*-relevant chunks, tanking
+        # recall@5. This exists only to prove the CI quality gate blocks a
+        # regression; revert before merging.
+        qvec = -qvec
         return self.index.search(qvec, depth)
 
 
