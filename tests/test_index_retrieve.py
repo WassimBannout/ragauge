@@ -83,12 +83,11 @@ def test_retriever_seam_returns_dense_provenance(tmp_path):
     assert results[0].score >= results[1].score
 
 
-def test_unimplemented_stages_raise():
+def test_no_stage_enabled_raises():
+    # dense and bm25 both off -> nothing to retrieve.
     retriever = Retriever(HashingEmbedder(), _dummy_index(), {})
-    with pytest.raises(NotImplementedError):
-        retriever.retrieve("q", RetrievalConfig(bm25=True))
     with pytest.raises(ValueError):
-        retriever.retrieve("q", RetrievalConfig(dense=False))
+        retriever.retrieve("q", RetrievalConfig(dense=False, bm25=False))
 
 
 # --- helpers ---------------------------------------------------------------- #
