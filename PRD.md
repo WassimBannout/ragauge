@@ -634,7 +634,7 @@ The slice is done when:
 
 ## Implementation status
 
-> **As of 2026-06-29.** Update this at the end of every working session
+> **As of 2026-06-30.** Update this at the end of every working session
 > (per [`CLAUDE.md`](./CLAUDE.md)). The checklist above is the per-task tracker;
 > this section is the prose snapshot a reviewer reads first.
 

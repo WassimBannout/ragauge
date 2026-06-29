@@ -11,8 +11,9 @@
 | **unsupported-claim rate** | **0.00** | same judged run |
 | **$ per eval run** | **$0.66** | 25-question dense judged run (provider token counts) |
 
-*Current as of 2026-06-29 — eval harness, retrieval ablation, model sweep, and a
-PR-blocking CI gate built. **recall@5** is the deterministic ablation winner
+*Current as of 2026-06-30 — eval harness, retrieval ablation, model sweep, a
+PR-blocking CI gate (exhibited green and blocking), and golden-set verification
+built. **recall@5** is the deterministic ablation winner
 (hybrid; dense baseline 0.32). **groundedness / unsupported-claim rate / $-per-run**
 are the first judged numbers, from the committed CI baseline
 ([`evals/baseline.json`](evals/baseline.json)) on **dense** retrieval: the system
