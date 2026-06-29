@@ -121,17 +121,18 @@ is reached on the shortest viable path. `★` marks a task that produces a
 reviewer-facing artifact or headline number; the rest are the plumbing that earns it.
 
 **Status legend:** `- [ ]` pending · `- [x]` done · annotate partials inline.
-**Progress at a glance:** 17 / 23 done (T1–T8 + T10, T12–T19; T9, T11, T20
-partial) — **Slice 1 (ingest + dense retrieval), the eval harness, and the
-hybrid retrieval ablation (T17–T19) are built and tested.** The deterministic
-retrieval ablation is measured: **dense recall@5 = 0.32 → hybrid (BM25 + RRF)
-0.51 (+0.19) → +rerank 0.34** (the generic cross-encoder doesn't earn its cost;
-see T19). The grounded generator + dual-trigger abstention + structured
-LLM-as-judge + RunReport are implemented and stub-validated, awaiting an
-`ANTHROPIC_API_KEY` run for the judged numbers (which fill the ablation's
-groundedness columns). Next up: **human-verify the golden set**, the
-**embedding-model dimension of the ablation (T20)**, then the **sweep + CI gate
-(T21–T23)**. See § Implementation status for deviations.
+**Progress at a glance:** ~21 / 23 implemented (T1–T8, T10, T12–T22; T9 drafted
+but unverified, T23 pending) — **Slice 1 (ingest + dense retrieval), the eval
+harness, the hybrid retrieval ablation, the model & cost sweep, and the
+PR-blocking CI gate are built and tested.** The deterministic retrieval ablation
+is measured: **dense recall@5 = 0.32 → hybrid (BM25 + RRF) 0.51 (+0.19) → +rerank
+0.34** (the generic cross-encoder doesn't earn its cost; see T19). The judged
+generation path is now measured too — the committed CI baseline
+(`evals/baseline.json`, dense, 25-question subset) reports **groundedness 1.00 /
+unsupported 0.00 / $0.66** over its 13 answered rows. Next up: **human-verify the
+golden set (T9)**, a **full hybrid + model-sweep judged run**, the
+**embedding-model dimension of the ablation (T20)**, and the **portfolio writeup
+(T23)**. See § Implementation status for deviations.
 
 #### Phase 0 — Foundations (clean boundaries = architect signal)
 
@@ -311,16 +312,33 @@ groundedness columns). Next up: **human-verify the golden set**, the
 
 #### Phase 7 — Sweep, gate, writeup
 
-- [ ] **T21 · Model & cost sweep. ★** Compare candidate Claude models (generator
-  and judge) on the fixed golden set; report $/run, p50/p95, quality.
+- [ ] **T21 · Model & cost sweep. ★** *(partial: harness implemented
+  (`ragauge.eval.sweep` → `dashboard.md`); a judged run with an `ANTHROPIC_API_KEY`
+  is still pending to fill in the numbers.)* Compare candidate Claude models
+  (generator and judge) on the fixed golden set; report $/run, p50/p95, quality.
   - *Acceptance:* a dashboard/table compares ≥2 models with quality vs. $/run vs. latency, justifying the generator/judge picks by data, not guess. *(Artifact: the dashboard.)*
   - *Metric:* **$ per eval run, p95 latency** vs. quality · *Depends on:* T16
-- [ ] **T22 · CI gate (GitHub Actions). ★** Harness runs in CI and **fails the
-  build** when recall@5 floor / unsupported-claim-rate ceiling are crossed;
-  thresholds defensible (baseline + tolerance). Consider cheap deterministic gate
-  per-PR, full judged sweep on schedule/label (cost risk).
+  - *Built:* sweeps cheapest/balanced/most-capable (haiku → sonnet → opus) over the
+    golden set, judge fixed at the most-capable tier; reports groundedness,
+    cost-per-query, p50/p95 latency, and **$/run with prompt caching on vs. off**
+    (stable instruction prefix cached, per-question evidence after the breakpoint).
+- [ ] **T22 · CI gate (GitHub Actions). ★** *(partial: workflow + gate built and
+  unit-tested; **both** the recall@5 and groundedness gates are live against a
+  committed judged `evals/baseline.json` (recall@5 0.32, groundedness 1.00 over 13
+  answered rows, 25-question dense subset). Remaining: a demonstrably-failing PR to
+  show it blocks merge, once the repo's `ANTHROPIC_API_KEY` secret is set.)* Harness
+  runs in CI and **fails the build** when recall@5 floor / unsupported-claim-rate
+  ceiling are crossed; thresholds defensible (baseline + tolerance). Consider cheap
+  deterministic gate per-PR, full judged sweep on schedule/label (cost risk).
   - *Acceptance:* a demonstrably failing PR (metric below threshold) blocks merge and a passing one merges; thresholds documented with rationale. *(Artifact: a blocking PR.)*
   - *Metric:* gates **recall@5, unsupported-claim rate** · *Depends on:* T16 (full gate after T20)
+  - *Built:* `.github/workflows/eval-gate.yml` runs `ragauge.eval.run --limit 25`
+    on every PR (judged when `ANTHROPIC_API_KEY` is set, deterministic recall-only
+    on fork PRs), then `ragauge.eval.gate` compares `metrics.json` to
+    `evals/baseline.json` and **exits non-zero** when recall@5 or groundedness
+    drops > 0.05 below baseline. The metrics delta is posted as a sticky PR comment
+    (and the job summary). Chosen the PRD's hybrid shape: recall@5 gates for free on
+    every PR; groundedness gates only when a judged run is available.
 - [ ] **T23 · README headline + portfolio writeup. ★** Surface the ablation table
   + cost/latency/groundedness dashboard and the headline metrics **up top**;
   explain each design decision and what each stage earned.
@@ -619,19 +637,22 @@ The slice is done when:
 > this section is the prose snapshot a reviewer reads first.
 
 **Phase:** **Slice 1 (ingest + dense retrieval, T1–T8), the eval harness
-(T10, T12–T16), and the hybrid retrieval ablation (T17–T20) are built and
-tested.** The full path exists end-to-end: raw 10-Ks → structure-aware chunks →
-stamped exact dense index → config-toggleable `Retrieve` seam (dense + BM25 →
-RRF → cross-encoder rerank, each its own toggle) → grounded, cited generation
-(or abstention) → structured LLM-as-judge → a persisted `RunReport`, with a
-one-command ablation runner that sweeps the retrieval matrix into a comparison
-table. The **deterministic retrieval ablation is measured** (dense recall@5
-0.32 → hybrid 0.51 → +rerank 0.34); the judged generation metrics are
-implemented and stub-validated but need an `ANTHROPIC_API_KEY` run (no key in the
-build environment).
-**Progress:** 17 / 23 subtasks coded (T1–T8 + T10, T12–T19; T9, T11, T20
-partial). **Next up: human-verify the golden set, add the embedding-model
-dimension to the ablation (T20), then the model/cost sweep + CI gate (T21–T23).**
+(T10, T12–T16), the hybrid retrieval ablation (T17–T20), the model & cost sweep
+(T21), and the PR-blocking CI gate (T22) are built and tested.** The full path
+exists end-to-end: raw 10-Ks → structure-aware chunks → stamped exact dense index
+→ config-toggleable `Retrieve` seam (dense + BM25 → RRF → cross-encoder rerank,
+each its own toggle) → grounded, cited generation (or abstention) → structured
+LLM-as-judge → a persisted `RunReport`, with a one-command ablation runner, a
+three-model cost/quality sweep, and a CI gate that fails the build on a
+recall@5/groundedness regression. The **deterministic retrieval ablation is
+measured** (dense recall@5 0.32 → hybrid 0.51 → +rerank 0.34), and the **judged
+generation path is now measured** on the committed CI baseline (dense, 25-question
+subset: groundedness 1.00 over 13 answered, unsupported 0.00, $0.66/run). The
+**fuller judged picture** — a hybrid-retrieval judged run and the 3-model sweep
+across the whole golden set — is the next measurement.
+**Progress:** ~21 / 23 subtasks implemented (T1–T8, T10, T12–T22). **Outstanding:
+T9 — by-hand golden-set verification; T20's embedding-model row; a full hybrid +
+sweep judged run; T23 — the portfolio writeup.**
 
 **What runs today (`ragauge` CLI):** `acquire` · `ingest` · `inspect` ·
 `build-index` · `query` (Slice 1) · **`eval`** — `ragauge eval --no-judge` runs
@@ -642,7 +663,10 @@ The retrieval stack is config-toggleable end-to-end —
 `python -m ragauge.eval.run --retrieval {dense|hybrid|hybrid+rerank}` picks a
 rung, and **`python -m ragauge.eval.ablation`** sweeps all three in one command,
 emitting the markdown comparison table + per-config `RunReport`s to
-`metrics_ablation.json`. **34 unit tests green** (`pytest`), all offline.
+`metrics_ablation.json`. **`python -m ragauge.eval.sweep`** runs the 3-model cost/
+quality sweep → `dashboard.md`, and **`python -m ragauge.eval.gate`** compares a
+run to `evals/baseline.json` and exits non-zero on a regression (the CI gate).
+**52 unit tests green** (`pytest`), all offline.
 
 **Measured (deterministic, no LLM), on the 30-row candidate golden set**
 (`corpus_hash=60707081f218`):
@@ -665,9 +689,11 @@ lose to hybrid on recall@5, confirming it's the *stage*, not one weak checkpoint
 
 ### Headline-metrics status
 
-Mirrored at the top of [`README.md`](./README.md). Retrieval metrics are now
-**measured**; the judged metrics are wired and validated on stubbed calls but
-remain **unmeasured** until a run with an API key — *honest numbers or none.*
+Mirrored at the top of [`README.md`](./README.md). Retrieval metrics are
+**measured** deterministically; the judged metrics now have their **first measured
+numbers** from the committed CI baseline (`evals/baseline.json`, dense retrieval,
+25-question subset). The richer judged picture (hybrid retrieval + the model sweep
+over the full golden set) is the next measurement — *honest numbers or none.*
 
 | Metric | Status |
 |---|---|
@@ -675,10 +701,10 @@ remain **unmeasured** until a run with an API key — *honest numbers or none.*
 | **MRR** (best config = hybrid) | ✅ **0.29** measured (no LLM); dense baseline 0.17 |
 | **recall lift per stage** (ablation) | ✅ measured (T20): dense 0.32 → hybrid 0.51 (**+0.19**) → +rerank 0.34 |
 | **p95 latency (retrieval)** | ✅ hybrid **~179 ms**, dense **~197 ms**; rerank ~2100 ms (its cost made explicit) |
-| **unanswerable-precision** | wired; n/a in retrieval-only mode (needs the generator's abstention signal — T13) |
-| **groundedness / supported-claim rate** | wired (T14); needs a judged run |
-| **unsupported-claim rate** | wired (T14); needs a judged run |
-| **$ / eval run** | wired (T15, real provider token counts); needs a judged run |
+| **groundedness / supported-claim rate** | ✅ **1.00** measured (T14) — judged CI baseline, dense, 13 of 25 answered |
+| **unsupported-claim rate** | ✅ **0.00** measured (T14) — same run; small n, fuller picture pending |
+| **$ / eval run** · **gen p95** | ✅ **$0.66 · ~5.7 s** measured (T15/T21) — 25-q dense judged run, provider token counts |
+| **unanswerable-precision** | wired; n/a on the first-25 answerable subset (needs unanswerable rows / a verified split) |
 
 ### Completed features
 
@@ -731,12 +757,13 @@ tested:**
 - **RunReport assembly (T16).** `ragauge/eval/run.py` writes a `RunReport` to
   `metrics.json`: per-question rows + aggregates + `(config_hash, corpus_hash,
   embedding / generator / judge model ids, timestamp, cost)`.
-- **Tests.** 34 unit tests green (19 Slice 1 + 7 covering the deterministic
-  metrics, cost-from-token-counts, and the judge-capability gate + 8 covering
-  BM25 ranking, RRF fusion, the rerank toggle, and per-stage provenance across
-  the hybrid stack); the judged path is validated end-to-end against a stubbed
-  client (citation filtering, the abstention gates, None/refusal handling,
-  telemetry, and metric aggregation).
+- **Tests.** 52 unit tests green: Slice 1 + the deterministic metrics,
+  cost-from-token-counts, and judge-capability gate; BM25 ranking, RRF fusion, the
+  rerank toggle, and per-stage provenance across the hybrid stack; **8 for the
+  sweep's cache-aware cost math / tier ordering / recommendation (T21); 10 for the
+  CI gate's threshold edges and skip-don't-fail behaviour (T22)**. The judged path
+  is validated end-to-end against a stubbed client (citation filtering, the
+  abstention gates, None/refusal handling, telemetry, and metric aggregation).
 
 **Hybrid retrieval + the ablation (T17–T20), coded · tested:**
 - **BM25 sparse retrieval, toggleable (T17).** `ragauge/retrieve/bm25.py` — an
@@ -762,6 +789,37 @@ tested:**
   columns populate when an `ANTHROPIC_API_KEY` is present; recall / MRR / p95 are
   always deterministic.
 
+**Model & cost sweep (T21), coded · tested · smoke-validated:**
+- **3-model sweep (T21). ★** `python -m ragauge.eval.sweep` runs the golden set
+  through cheapest → balanced → most capable (`haiku-4-5` → `sonnet-4-6` →
+  `opus-4-8`), judge fixed at the most-capable tier (≥ every generator), and writes
+  `dashboard.md` + `metrics_sweep.json`: groundedness, **cost-per-query**, p50/p95
+  generation latency, and recall@5. Evidence is retrieved **once per question** and
+  reused across all three models, so the comparison is fair and recall is invariant
+  by construction (recall *lift* stays the ablation's headline).
+- **Prompt caching, priced on vs. off (T21).** The stable instruction prefix carries
+  a `cache_control` breakpoint; per-question evidence goes after it. `$/run` on-vs-off
+  is repriced from the provider's `usage` cache split in a single pass. Smoke run
+  (3-q) confirmed the path end-to-end and the **honest finding**: at our ~150-token
+  instruction prefix (below the 1024–4096-token minimum) nothing caches, so the
+  realized saving is $0 — the dashboard reports that rather than faking a win.
+
+**CI quality gate (T22), coded · tested · baseline committed:**
+- **Gate comparator (T22).** `ragauge/eval/gate.py` — a pure comparator over two
+  `RunReport`s: applies per-metric tolerances (default 0.05), renders the Markdown
+  delta, and **exits non-zero** when recall@5 or groundedness drops beyond tolerance.
+  A missing metric on either side is **skipped, not failed**, so the deterministic
+  recall gate survives a key-less run; corpus/config-hash drift is flagged as
+  "regenerate the baseline" rather than a phantom regression.
+- **GitHub Actions workflow (T22). ★** `.github/workflows/eval-gate.yml` runs on
+  every PR: build corpus + index (cached) → `ragauge.eval.run --limit 25`
+  (deterministic first-25 subset) → gate vs. `evals/baseline.json` → post the delta
+  as a sticky PR comment + job summary → fail the build on a regression. Judged when
+  `ANTHROPIC_API_KEY` is set; deterministic recall-only on fork PRs (no secrets).
+- **Committed judged baseline (T22).** `evals/baseline.json` — recall@5 0.32,
+  groundedness 1.00 (13 answered of 25), unsupported 0.00, $0.66, 25-q dense — so
+  **both** the recall@5 and groundedness gates are live.
+
 **Planning (pre-existing):** design & architecture ([`DESIGN.md`](./DESIGN.md)),
 epic + PRD + the 23-task checklist, and the build-ready **§ Slice 1
 requirements** spec.
@@ -777,36 +835,54 @@ requirements** spec.
   judge inline in `eval/run.py` rather than via a standalone `Pipeline` object;
   sufficient for the eval surface today, extractable when a CLI `ask` command
   needs it.
-- **T20 — ablation (retrieval dimension done; embedding dimension + judged run
+- **T20 — ablation (retrieval dimension done; embedding dimension + judged ablation
   pending).** The 3-rung retrieval ablation (dense → hybrid → hybrid+rerank) runs
-  in one command and is measured. **Still pending:** the **embedding-model
-  dimension** (`voyage-finance-2` / `text-embedding-3-large` vs. the bge baseline
-  — a deterministic recall@5/MRR comparison per §S1.4) and the **judged
-  groundedness columns** (need an `ANTHROPIC_API_KEY`).
+  in one command and is measured deterministically. The judged path is now proven
+  (the CI baseline is a judged dense run), but the **judged groundedness/$ columns
+  across all three rungs** haven't been run yet, and the **embedding-model
+  dimension** (`voyage-finance-2` / `text-embedding-3-large` vs. the bge baseline —
+  a deterministic recall@5/MRR comparison per §S1.4) is still to add.
 - _Note:_ the owner also edits these docs from a separate playbook chat, so treat
   filesystem state as truth and re-verify before relying on any summary.
 
 ### Pending
-- **Judged metrics run.** Generation / groundedness / unsupported-rate / $-per-run
-  are implemented but **unmeasured** until `ragauge eval` (or the ablation) runs
-  with an `ANTHROPIC_API_KEY` (no key in this environment).
-- **T20 — embedding-model dimension.** The retrieval-stage ablation is done and
+- **T9 — by-hand golden-set verification.** 30 candidate rows are drafted and
+  chunk-grounded, but every row's question/answer/`gold_chunk_id` still needs human
+  sign-off before the numbers above can be called ground truth. **This gates the
+  integrity of every metric.**
+- **Full hybrid + sweep judged run.** The judged numbers so far are the **dense**
+  25-question CI baseline. Still to measure: a judged run on **hybrid** retrieval
+  (recall 0.51 → more answered rows → a more representative groundedness/$), and the
+  3-model `sweep` over the full golden set to populate `dashboard.md` with real
+  per-tier numbers (the smoke run validated the path only).
+- **T20 — embedding-model dimension.** The retrieval-*stage* ablation is done and
   measured; the remaining piece is the embedding-model row (`voyage-finance-2` /
   `text-embedding-3-large` vs. bge) — an LLM-free recall@5/MRR comparison added to
   the same table.
-- **T21–T23 — model & cost sweep, CI gate, README/portfolio writeup.**
+- **T22 — exhibit the gate.** Both gates are live against the committed baseline;
+  the remaining acceptance artifact is setting the repo `ANTHROPIC_API_KEY` secret
+  and opening a demonstrably-failing PR to show the block. *Note: the groundedness
+  baseline is high-variance at n=13 answered — one ungrounded answer (−0.077) trips
+  the 0.05 gate; that's the gate working, but widen the tolerance or the subset if
+  it proves flaky once the golden set is verified.*
+- **T23 — README/portfolio writeup.** Surface the ablation table, dashboard, CI
+  badge, and headline metrics up top with the per-decision rationale.
 
 ### Next steps (immediate)
 1. **Human-verify the golden set (finish T9):** read and correct every candidate
    row, then promote it to the verified ground-truth file the harness loads — this
    gates the integrity of every number above.
-2. **Run `ragauge eval` / the ablation with a key** to fill in the judged headline
-   metrics (groundedness, unsupported-claim rate, $/run) and validate the live
-   generation + judge path.
+2. **Run the full judged picture:** a judged **hybrid** eval and the **3-model
+   sweep** over the whole golden set, to replace the dense smoke/baseline numbers
+   with representative groundedness / $/run and to populate `dashboard.md`.
 3. **Add the embedding-model dimension to the ablation (finish T20):**
    `voyage-finance-2` / `text-embedding-3-large` vs. bge — a deterministic
    recall@5/MRR row, the last piece of the thesis table.
-4. **T21–T23 — model/cost sweep, CI gate, README/portfolio writeup.**
+4. **Exhibit the CI gate (finish T22):** with the repo `ANTHROPIC_API_KEY` secret
+   set, open a PR that trips the gate (recall or groundedness below baseline) to
+   demonstrate the block.
+5. **T23 — portfolio writeup:** finalize the README narrative around the
+   now-current headline metrics, ablation, dashboard, and CI badge.
 
 ### Technical decisions & deviations from plan
 - **Eval harness (this session):**
@@ -832,6 +908,53 @@ requirements** spec.
     answer grounded.
   - **`metrics.json` is gitignored**; the explicit baseline (`runs/`, `baseline.json`)
     is committed separately when the ablation lands.
+- **Model & cost sweep (T21, this session):**
+  - **Module lives at `ragauge/eval/sweep.py`, not a top-level `evals/`.** The whole
+    eval harness is a package under `ragauge/eval/` (`run`, `ablation`, `cost`,
+    `judge`…); the sweep rides that machinery (it imports `make_pipeline_config`,
+    the capability gate, the metrics) and runs as `python -m ragauge.eval.sweep`,
+    mirroring `ablation`. Output still lands in `dashboard.md` at the repo root.
+  - **Retrieval and judge held constant; only the generator varies.** Evidence is
+    retrieved **once per question** and reused across all three models, so the
+    comparison is strictly fair and **recall@5 is invariant by construction** — the
+    sweep moves groundedness/cost/latency, while recall *lift* stays the headline of
+    the retrieval ablation. The flat recall column is reported deliberately, to make
+    that separation explicit rather than imply the model changes retrieval.
+  - **Prompt caching priced on vs. off from one pass.** The stable instruction
+    prefix carries a `cache_control` breakpoint; per-question chunks go *after* it.
+    The provider's `usage` cache split (`cache_creation` / `cache_read`) is repriced
+    under both the cache multipliers (write 1.25×, read 0.10×) and the full input
+    rate, so `$/run` on-vs-off needs no second API call. **Honest finding to expect:**
+    at this short instruction prefix (~150 tokens, below the 1024–4096-token
+    minimum) the prefix silently won't cache and the realized saving is ~$0 — the
+    dashboard says so and notes caching only pays at a larger shared prefix.
+  - **Cost from billed `usage`, not `count_tokens`.** Dollars come from the
+    provider's *returned* token counts (the billed figure, including the cache
+    breakdown) — strictly more accurate than a pre-flight `messages.count_tokens`
+    estimate, and never a generic tokenizer.
+- **CI gate (T22, this session):**
+  - **`ragauge/eval/gate.py` is a pure comparator; the workflow is the only
+    GitHub-specific piece.** The gate reads two `RunReport`s, applies per-metric
+    tolerances, renders the Markdown delta, and exits non-zero — so the verdict is
+    unit-testable offline (10 tests) and the *same* Markdown is both the PR comment
+    and the job summary.
+  - **Deterministic-first, judged-when-available.** recall@5 needs no API key, so
+    it gates **every** PR (fork PRs included) for free. Groundedness is gated only
+    when a judged run produced it; a missing value on either side is **skipped, not
+    failed**, so a key-less run can't silently pass *or* spuriously fail the
+    groundedness check. This is the PRD's "cheap deterministic gate per-PR" made
+    concrete.
+  - **Reproducible 25-question subset.** `--limit` takes the first N of the
+    stably-ordered golden set, so the committed baseline and every PR run grade the
+    *same* questions. A corpus/config hash change is surfaced in the comment as a
+    "regenerate the baseline" warning rather than a confusing recall regression.
+  - **Baseline lives at `evals/baseline.json` (tracked); `metrics.json`/`delta.md`
+    are CI artifacts (gitignored).** Tolerances default to 0.05 on both metrics,
+    set on the workflow's gate step.
+  - **Fork-PR safety:** the workflow uses `pull_request` (not `pull_request_target`),
+    so untrusted PR code never runs with secrets; the sticky comment is guarded to
+    same-repo PRs (fork PRs get a read-only token), and the recall gate still fails
+    the build for everyone.
 - **Hybrid retrieval & ablation (this session):**
   - **BM25 implemented directly, not via `rank_bm25`.** An in-memory Okapi BM25
     mirrors the NumPy-over-FAISS decision: identical semantics, zero native deps,

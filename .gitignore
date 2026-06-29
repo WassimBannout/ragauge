@@ -28,6 +28,10 @@ indexes/
 runs/
 metrics.json
 metrics_ablation.json
+metrics_sweep.json
+delta.md
+# dashboard.md is intentionally trackable: the T21/T23 portfolio artifact, surfaced
+# from the README once a keyed sweep run produces it.
 
 # OS / editor
 .DS_Store
