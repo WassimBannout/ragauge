@@ -27,6 +27,7 @@ indexes/
 # Eval run outputs (history can be noisy; keep baseline.json tracked explicitly)
 runs/
 metrics.json
+metrics_ablation.json
 
 # OS / editor
 .DS_Store

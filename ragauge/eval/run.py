@@ -10,12 +10,16 @@ For each golden row it runs Retrieve -> Generate -> Judge, then computes:
 
 Results are written to ``metrics.json`` (a ``RunReport``) and printed as a table.
 
+The retrieval stack is config-selectable via ``--retrieval`` so a single run can
+target any rung of the ablation ladder (dense → hybrid → hybrid+rerank); the
+3-config comparison table is driven by :mod:`ragauge.eval.ablation`.
+
 The judge/generator are optional: with ``--no-judge``, no ``anthropic`` package, or
 no ``ANTHROPIC_API_KEY``, the harness still produces the deterministic retrieval
 baseline (DESIGN.md §7.3 — the metrics aren't hostage to the judge). Run with::
 
-    python -m ragauge.eval.run            # full judged run (needs ANTHROPIC_API_KEY)
-    python -m ragauge.eval.run --no-judge # deterministic retrieval baseline only
+    python -m ragauge.eval.run                       # full judged dense run
+    python -m ragauge.eval.run --retrieval hybrid+rerank --no-judge
 """
 
 from __future__ import annotations
@@ -46,6 +50,25 @@ DEFAULT_OUT = Path("metrics.json")
 DEFAULT_GENERATOR_MODEL = "claude-opus-4-8"
 DEFAULT_JUDGE_MODEL = "claude-opus-4-8"  # judge >= generator (PRD §7.3)
 
+# The ablation ladder: each preset is a config diff over the previous one, so a
+# recall delta is attributable to the single stage that was switched on.
+RETRIEVAL_PRESETS: dict[str, dict] = {
+    "dense": {"dense": True, "bm25": False, "fusion": False, "rerank": False},
+    "hybrid": {"dense": True, "bm25": True, "fusion": True, "rerank": False},
+    "hybrid+rerank": {"dense": True, "bm25": True, "fusion": True, "rerank": True},
+}
+
+
+def make_pipeline_config(preset: str, top_k: int) -> PipelineConfig:
+    """A ``PipelineConfig`` with the named retrieval preset applied. Embedding
+    and chunking are held constant across presets, so the only config diff — and
+    thus the only thing the ``config_hash`` separates — is the retrieval stack."""
+    cfg = PipelineConfig()
+    cfg.retrieval = cfg.retrieval.model_copy(
+        update={**RETRIEVAL_PRESETS[preset], "top_k": top_k, "top_n": top_k}
+    )
+    return cfg
+
 
 def _judging_available(no_judge: bool) -> tuple[bool, str]:
     if no_judge:
@@ -59,38 +82,43 @@ def _judging_available(no_judge: bool) -> tuple[bool, str]:
     return True, ""
 
 
-def run(
-    *,
-    golden_path: Path,
-    out_path: Path,
-    generator_model: str,
-    judge_model: str,
-    no_judge: bool,
-    top_k: int,
-) -> RunReport:
+def build_components(no_judge: bool, generator_model: str, judge_model: str):
+    """Load the embedder + retriever (and, when judging, the generator/judge)
+    once. The retriever is preset-agnostic — embedding/chunking are constant — so
+    the ablation reuses a single instance across all three configs."""
     from ragauge.retrieve.embedder import BgeEmbedder
     from ragauge.retrieve.retriever import build_retriever
 
-    cfg = PipelineConfig()
-    cfg.retrieval.top_k = top_k
-    corpus_hash = json.loads(MANIFEST.read_text())["corpus_hash"]
-
-    golden = load_golden(golden_path)
-    embedder = BgeEmbedder(cfg.embedding)
+    base = PipelineConfig()
+    embedder = BgeEmbedder(base.embedding)
     retriever = build_retriever(
-        embedder, index_dir=INDEX_DIR, store_path=STORE, config=cfg
+        embedder, index_dir=INDEX_DIR, store_path=STORE, config=base
     )
-    chunk_map = retriever.chunk_map
 
-    judge_on, judge_off_reason = _judging_available(no_judge)
+    judge_on, reason = _judging_available(no_judge)
     generator = judge = None
     if judge_on:
         assert_judge_at_least_as_capable(generator_model, judge_model)
         generator = Generator(generator_model)
         judge = Judge(judge_model)
-        print(f"Judged run: generator={generator_model}  judge={judge_model}")
-    else:
-        print(f"Retrieval-only run (no generation/judge): {judge_off_reason}")
+    return retriever, generator, judge, judge_on, reason
+
+
+def evaluate_config(
+    *,
+    retriever,
+    generator,
+    judge,
+    judge_on: bool,
+    golden,
+    pipeline_cfg: PipelineConfig,
+    corpus_hash: str,
+    generator_model: str,
+    judge_model: str,
+) -> RunReport:
+    """Run the full golden set through one retrieval config -> ``RunReport``."""
+    retrieval_cfg = pipeline_cfg.retrieval
+    top_k = retrieval_cfg.top_k
 
     per_question: list[dict] = []
     retrieval_ms: list[float] = []
@@ -101,7 +129,7 @@ def run(
         answerable = row.type != GoldType.UNANSWERABLE
 
         t0 = time.perf_counter()
-        results = retriever.retrieve(row.question, cfg.retrieval)
+        results = retriever.retrieve(row.question, retrieval_cfg)
         dt = (time.perf_counter() - t0) * 1000
         retrieval_ms.append(dt)
         retrieved_ids = [r.chunk.chunk_id for r in results]
@@ -123,7 +151,7 @@ def run(
         }
 
         if judge_on:
-            answer = generator.generate(row.question, results, cfg.retrieval)
+            answer = generator.generate(row.question, results, retrieval_cfg)
             total_cost += answer.cost_usd
             gen_ms.append(answer.latency_ms)
             entry.update(
@@ -147,19 +175,19 @@ def run(
                 )
         else:
             # Retrieval-only: abstention is the pre-generation evidence gate.
-            min_score = cfg.retrieval.min_score
+            min_score = retrieval_cfg.min_score
             entry["abstained"] = not results or (
                 min_score is not None and results[0].score < min_score
             )
 
         per_question.append(entry)
 
-    aggregates = _aggregate(per_question, golden, retrieval_ms, gen_ms, judge_on)
+    aggregates = _aggregate(per_question, golden, retrieval_ms, gen_ms, judge_on, top_k)
 
-    report = RunReport(
-        config_hash=cfg.hash(),
+    return RunReport(
+        config_hash=pipeline_cfg.hash(),
         corpus_hash=corpus_hash,
-        embedding_model_id=cfg.embedding.model_id,
+        embedding_model_id=pipeline_cfg.embedding.model_id,
         generator_model_id=generator_model if judge_on else "",
         judge_model_id=judge_model if judge_on else "",
         timestamp=_dt.datetime.now(_dt.timezone.utc).isoformat(),
@@ -167,12 +195,47 @@ def run(
         aggregates=aggregates,
         cost_usd=round(total_cost, 6),
     )
+
+
+def run(
+    *,
+    golden_path: Path,
+    out_path: Path,
+    generator_model: str,
+    judge_model: str,
+    no_judge: bool,
+    top_k: int,
+    retrieval: str,
+) -> RunReport:
+    cfg = make_pipeline_config(retrieval, top_k)
+    corpus_hash = json.loads(MANIFEST.read_text())["corpus_hash"]
+    golden = load_golden(golden_path)
+
+    retriever, generator, judge, judge_on, reason = build_components(
+        no_judge, generator_model, judge_model
+    )
+    if judge_on:
+        print(f"Judged run [{retrieval}]: generator={generator_model}  judge={judge_model}")
+    else:
+        print(f"Retrieval-only run [{retrieval}] (no generation/judge): {reason}")
+
+    report = evaluate_config(
+        retriever=retriever,
+        generator=generator,
+        judge=judge,
+        judge_on=judge_on,
+        golden=golden,
+        pipeline_cfg=cfg,
+        corpus_hash=corpus_hash,
+        generator_model=generator_model,
+        judge_model=judge_model,
+    )
     out_path.write_text(report.model_dump_json(indent=2))
-    _print_summary(report, judge_on, golden_path, out_path)
+    _print_summary(report, judge_on, golden_path, out_path, retrieval)
     return report
 
 
-def _aggregate(per_question, golden, retrieval_ms, gen_ms, judge_on) -> dict:
+def _aggregate(per_question, golden, retrieval_ms, gen_ms, judge_on, top_k) -> dict:
     answerable = [e for e in per_question if e["recall_at_k"] is not None]
     recalls = [e["recall_at_k"] for e in answerable]
     rrs = [e["reciprocal_rank"] for e in answerable]
@@ -184,6 +247,7 @@ def _aggregate(per_question, golden, retrieval_ms, gen_ms, judge_on) -> dict:
     agg: dict = {
         "n_questions": len(per_question),
         "n_answerable": len(answerable),
+        "top_k": top_k,
         "recall_at_5": round(sum(recalls) / len(recalls), 4) if recalls else None,
         "mrr": round(sum(rrs) / len(rrs), 4) if rrs else None,
         "unanswerable_precision": None if uprec is None else round(uprec, 4),
@@ -224,11 +288,11 @@ def _fmt(v) -> str:
     return "  n/a" if v is None else f"{v:.4f}" if isinstance(v, float) else str(v)
 
 
-def _print_summary(report: RunReport, judge_on: bool, golden_path, out_path) -> None:
+def _print_summary(report: RunReport, judge_on, golden_path, out_path, retrieval) -> None:
     a = report.aggregates
     print()
     print("=" * 60)
-    print(f"  RAGauge eval — {golden_path}")
+    print(f"  RAGauge eval — {golden_path}  [retrieval={retrieval}]")
     print(f"  config={report.config_hash}  corpus={report.corpus_hash}")
     print("=" * 60)
     rows = [
@@ -262,6 +326,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--golden", type=Path, default=DEFAULT_GOLDEN,
                    help="golden-set JSONL (default: the committed candidate set)")
     p.add_argument("--out", type=Path, default=DEFAULT_OUT, help="metrics.json path")
+    p.add_argument("--retrieval", choices=list(RETRIEVAL_PRESETS), default="dense",
+                   help="retrieval stack preset (ablation rung)")
     p.add_argument("--generator-model", default=DEFAULT_GENERATOR_MODEL)
     p.add_argument("--judge-model", default=DEFAULT_JUDGE_MODEL)
     p.add_argument("--no-judge", action="store_true",
@@ -280,6 +346,7 @@ def main(argv: list[str] | None = None) -> int:
         judge_model=args.judge_model,
         no_judge=args.no_judge,
         top_k=args.top_k,
+        retrieval=args.retrieval,
     )
     return 0
 
