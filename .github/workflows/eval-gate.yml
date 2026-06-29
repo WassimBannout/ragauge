@@ -1,0 +1,137 @@
+name: eval-gate
+
+# Quality gate (PRD T22): on every PR, run the 25-question eval subset, compare
+# against the committed baseline (evals/baseline.json), post the metrics delta as
+# a PR comment, and FAIL the build if recall@5 or groundedness regresses beyond
+# tolerance. recall@5 is deterministic and always gated (no API key needed);
+# groundedness is gated when a judged run is available (ANTHROPIC_API_KEY secret).
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write # post/update the metrics-delta comment
+
+concurrency:
+  group: eval-gate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    env:
+      # Falls back to a generic contact if the secret is unset; EDGAR requires a
+      # User-Agent (SEC fair-access policy). Set SEC_USER_AGENT in repo secrets.
+      SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT || 'RAGauge CI (ci@example.com)' }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Sync dependencies (CPU-only torch via pinned wheel index)
+        run: uv sync --extra dev
+
+      # The corpus and dense index are gitignored (large, reproducible). Rebuild
+      # them once and cache, keyed on the manifest + the code that shapes them, so
+      # a chunking/ingest change correctly busts the cache.
+      - name: Cache corpus + dense index + embedding model
+        id: corpus-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            data/raw
+            data/chunks.jsonl
+            indexes
+            ~/.cache/huggingface
+          key: corpus-${{ hashFiles('data/manifest.json', 'ragauge/config.py', 'ragauge/ingest/**', 'ragauge/retrieve/embedder.py', 'ragauge/retrieve/index.py') }}
+
+      - name: Build corpus + dense index (on cache miss)
+        if: steps.corpus-cache.outputs.cache-hit != 'true'
+        run: |
+          uv run ragauge acquire
+          uv run ragauge ingest
+          uv run ragauge build-index
+
+      # Judged run when the API key is present (same-repo PRs); deterministic
+      # recall-only otherwise (fork PRs have no secrets) — the gate skips the
+      # groundedness check rather than failing when it can't be measured.
+      - name: Run eval (25-question subset) -> metrics.json
+        run: |
+          # Strip any stray whitespace/newline a pasted secret may carry — an
+          # API key with a trailing '\n' is an illegal HTTP header value and
+          # crashes every request before it's sent.
+          key="$(printf '%s' "${ANTHROPIC_API_KEY}" | tr -d '[:space:]')"
+          if [ -n "$key" ]; then
+            echo "ANTHROPIC_API_KEY present — full judged run (recall + groundedness)."
+            ANTHROPIC_API_KEY="$key" uv run python -m ragauge.eval.run --limit 25 --out metrics.json
+          else
+            echo "No ANTHROPIC_API_KEY (fork PR?) — deterministic recall gate only."
+            uv run python -m ragauge.eval.run --no-judge --limit 25 --out metrics.json
+          fi
+
+      - name: Gate vs. baseline (writes delta.md)
+        id: gate
+        continue-on-error: true # comment first, then fail the job below
+        run: |
+          uv run python -m ragauge.eval.gate \
+            --baseline evals/baseline.json \
+            --metrics metrics.json \
+            --out delta.md \
+            --recall-tolerance 0.05 \
+            --groundedness-tolerance 0.05
+
+      - name: Add delta to the job summary
+        if: always() && hashFiles('delta.md') != ''
+        run: cat delta.md >> "$GITHUB_STEP_SUMMARY"
+
+      # Post/update a sticky PR comment. Guarded to same-repo PRs — fork PRs get a
+      # read-only token and can't comment; the job summary above still carries the
+      # delta, and the gate still fails on a recall regression.
+      - name: Comment metrics delta on the PR
+        if: >-
+          always() && github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          hashFiles('delta.md') != ''
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- ragauge-eval-gate -->';
+            const body = `${marker}\n${fs.readFileSync('delta.md', 'utf8')}`;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find((c) => c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      - name: Fail the build if the gate regressed
+        if: steps.gate.outcome == 'failure'
+        run: |
+          echo "::error::Quality gate failed — a gated metric dropped beyond tolerance. See the PR comment / job summary."
+          exit 1

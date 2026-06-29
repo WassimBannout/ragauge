@@ -14,6 +14,14 @@ Output is **structured** (``client.messages.parse`` + a Pydantic schema), so
 citations and the abstention flag are parsed, never regexed out of prose. The
 ``anthropic`` import is lazy so the deterministic retrieval metrics run with no
 SDK and no API key.
+
+With ``cache_system=True`` (used by the T21 model sweep) the **stable instruction
+prefix** carries a ``cache_control`` breakpoint while the per-question evidence is
+sent *after* it, uncached — so a repeated run reuses the cached prefix. The
+returned ``Answer`` carries the provider's cache token split so the sweep can
+price caching on vs. off. Note: the prefix only caches once it clears the model's
+minimum cacheable size (1024–4096 tokens depending on the model); a short system
+prompt silently won't cache, which the dashboard reports honestly.
 """
 
 from __future__ import annotations
@@ -63,12 +71,24 @@ def _format_evidence(retrieved: list[RetrievedChunk]) -> str:
     return "\n\n".join(blocks)
 
 
+def _cache_tokens(usage) -> tuple[int, int]:
+    """(cache_creation, cache_read) from a response ``usage`` — 0 when the field
+    is absent or null (caching off, or a prefix below the cacheable minimum)."""
+    return (
+        getattr(usage, "cache_creation_input_tokens", 0) or 0,
+        getattr(usage, "cache_read_input_tokens", 0) or 0,
+    )
+
+
 class Generator:
     """Wraps the generation call behind ``generate(question, evidence) -> Answer``."""
 
-    def __init__(self, model_id: str, *, max_tokens: int = 1024):
+    def __init__(
+        self, model_id: str, *, max_tokens: int = 1024, cache_system: bool = False
+    ):
         self.model_id = model_id
         self.max_tokens = max_tokens
+        self.cache_system = cache_system
         self._client = None  # lazy
 
     def _client_or_init(self):
@@ -98,48 +118,68 @@ class Generator:
             )
 
         client = self._client_or_init()
+        # Evidence goes in the user turn, *after* the cached system prefix — so the
+        # per-question chunks never share a cache key with the stable instructions.
         user = f"Question: {question}\n\nEvidence:\n{_format_evidence(retrieved)}"
         response = client.messages.parse(
             model=self.model_id,
             max_tokens=self.max_tokens,
-            system=SYSTEM_PROMPT,
+            system=self._system_param(),
             messages=[{"role": "user", "content": user}],
             output_format=GenerationOutput,
         )
         out: GenerationOutput | None = response.parsed_output
         latency_ms = (time.perf_counter() - t0) * 1000
+        cc, cr = _cache_tokens(response.usage)
         usage = response.usage
         valid_ids = {rc.chunk.chunk_id for rc in retrieved}
 
-        if out is None:
-            # No parseable structured output (e.g. a safety refusal) — abstain
-            # rather than fabricate. The honest outcome, not an error.
+        def _answer(*, text: str, citations: list[str], abstained: bool) -> Answer:
             return Answer(
-                text="",
-                citations=[],
-                abstained=True,
+                text=text,
+                citations=citations,
+                abstained=abstained,
                 evidence_used=list(valid_ids),
                 input_tokens=usage.input_tokens,
                 output_tokens=usage.output_tokens,
+                cache_creation_input_tokens=cc,
+                cache_read_input_tokens=cr,
                 cost_usd=cost_usd(
-                    self.model_id, usage.input_tokens, usage.output_tokens
+                    self.model_id,
+                    usage.input_tokens,
+                    usage.output_tokens,
+                    cache_creation_tokens=cc,
+                    cache_read_tokens=cr,
                 ),
                 latency_ms=latency_ms,
             )
 
+        if out is None:
+            # No parseable structured output (e.g. a safety refusal) — abstain
+            # rather than fabricate. The honest outcome, not an error.
+            return _answer(text="", citations=[], abstained=True)
+
         # Drop any citation the model invented that isn't in the supplied evidence.
         citations = [c for c in out.citations if c in valid_ids]
-
-        return Answer(
+        return _answer(
             text="" if out.abstained else out.answer,
             citations=[] if out.abstained else citations,
             abstained=out.abstained,
-            evidence_used=list(valid_ids),
-            input_tokens=usage.input_tokens,
-            output_tokens=usage.output_tokens,
-            cost_usd=cost_usd(self.model_id, usage.input_tokens, usage.output_tokens),
-            latency_ms=latency_ms,
         )
+
+    def _system_param(self):
+        """The system prompt, with a ``cache_control`` breakpoint on the stable
+        prefix when caching is enabled. Plain string otherwise (no behaviour
+        change for the un-swept generator)."""
+        if not self.cache_system:
+            return SYSTEM_PROMPT
+        return [
+            {
+                "type": "text",
+                "text": SYSTEM_PROMPT,
+                "cache_control": {"type": "ephemeral"},
+            }
+        ]
 
     @staticmethod
     def _evidence_too_weak(

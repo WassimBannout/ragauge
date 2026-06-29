@@ -62,9 +62,12 @@ def _format_evidence(retrieved: list[RetrievedChunk]) -> str:
 class Judge:
     """Wraps the judge call behind ``judge(question, answer, evidence)``."""
 
-    def __init__(self, model_id: str, *, max_tokens: int = 1024):
+    def __init__(
+        self, model_id: str, *, max_tokens: int = 1024, cache_system: bool = False
+    ):
         self.model_id = model_id
         self.max_tokens = max_tokens
+        self.cache_system = cache_system
         self._client = None  # lazy
 
     def _client_or_init(self):
@@ -73,6 +76,20 @@ class Judge:
 
             self._client = anthropic.Anthropic()
         return self._client
+
+    def _system_param(self):
+        """Stable judge instructions, with a ``cache_control`` breakpoint when
+        caching is enabled. The per-question (answer + evidence) goes in the user
+        turn after it, so only the instruction prefix is cacheable."""
+        if not self.cache_system:
+            return SYSTEM_PROMPT
+        return [
+            {
+                "type": "text",
+                "text": SYSTEM_PROMPT,
+                "cache_control": {"type": "ephemeral"},
+            }
+        ]
 
     def judge(
         self,
@@ -93,16 +110,26 @@ class Judge:
         response = client.messages.parse(
             model=self.model_id,
             max_tokens=self.max_tokens,
-            system=SYSTEM_PROMPT,
+            system=self._system_param(),
             messages=[{"role": "user", "content": user}],
             output_format=JudgeVerdict,
         )
         latency_ms = (time.perf_counter() - t0) * 1000
         usage = response.usage
+        cc = getattr(usage, "cache_creation_input_tokens", 0) or 0
+        cr = getattr(usage, "cache_read_input_tokens", 0) or 0
         telemetry = {
             "input_tokens": usage.input_tokens,
             "output_tokens": usage.output_tokens,
-            "cost_usd": cost_usd(self.model_id, usage.input_tokens, usage.output_tokens),
+            "cache_creation_input_tokens": cc,
+            "cache_read_input_tokens": cr,
+            "cost_usd": cost_usd(
+                self.model_id,
+                usage.input_tokens,
+                usage.output_tokens,
+                cache_creation_tokens=cc,
+                cache_read_tokens=cr,
+            ),
             "latency_ms": latency_ms,
         }
         verdict = response.parsed_output
