@@ -11,8 +11,12 @@ dependencies = [
     "requests>=2.31",
     "python-dotenv>=1.0",
     "numpy>=1.26",
-    # Local embedding backbone (bge-base-en-v1.5). CPU-only torch is fine; see
-    # README for the CPU wheel index. Heavy, so it is an extra below as well.
+    # torch is declared explicitly (not just transitively via
+    # sentence-transformers) so the CPU wheel-index pin in [tool.uv.sources]
+    # actually binds — a source on a transitive-only dependency is ignored, which
+    # silently resolved the multi-GB CUDA build. See README / NFR3.
+    "torch>=2.2",
+    # Local embedding backbone (bge-base-en-v1.5), CPU-only on the pinned index.
     "sentence-transformers>=3.0",
     # Generation + LLM-as-judge for the eval harness; uses messages.parse
     # structured output. Lazily imported so the deterministic retrieval metrics

@@ -90,9 +90,8 @@ cross-encoder rerank) returning ranked evidence with per-stage provenance.
 ## Run it (Slice 1)
 
 ```bash
-uv venv --python 3.12 .venv && source .venv/bin/activate
-uv pip install -e .                       # add torch CPU wheel: --extra-index-url https://download.pytorch.org/whl/cpu
-pytest                                     # 19 tests, no model download needed
+uv sync --extra dev                        # CPU-only torch via the pinned wheel index (pyproject [tool.uv.sources]); no CUDA
+uv run pytest                              # 34 tests, no model download needed
 
 ragauge acquire                            # download AAPL/MSFT/NVDA 10-Ks + manifest (EDGAR)
 ragauge ingest                             # parse → segment → chunk → data/chunks.jsonl
